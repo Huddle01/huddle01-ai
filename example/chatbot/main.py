@@ -121,31 +121,30 @@ async def main():
 
         # # Agent Events
         @agent.on(AgentsEvents.Connected)
-        def on_agent_connected():
+        async def on_agent_connected():
             logger.info("Agent Connected")
 
         @agent.on(AgentsEvents.Disconnected)
-        def on_agent_disconnected():
+        async def on_agent_disconnected():
             logger.info("Agent Disconnected")
 
         @agent.on(AgentsEvents.Speaking)
-        def on_agent_speaking():
+        async def on_agent_speaking():
             logger.info("Agent Speaking")
 
         @agent.on(AgentsEvents.Listening)
-        def on_agent_listening():
+        async def on_agent_listening():
             logger.info("Agent Listening")
 
         @agent.on(AgentsEvents.Thinking)
-        def on_agent_thinking():
+        async def on_agent_thinking():
             logger.info("Agent Thinking")
-
-
-        # Connect to the LLM to the Room
-        await llm.connect()
 
         # Connect the Agent to the Room
         await agent.connect()
+
+        # Connect to the LLM to the Room
+        await llm.connect()
 
         if agent.audio_track is not None:
             await agent.rtc.produce(

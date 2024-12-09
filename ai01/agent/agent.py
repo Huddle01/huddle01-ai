@@ -45,6 +45,8 @@ class Agent(EnhancedEventEmitter):
     """
 
     def __init__(self, options: AgentOptions):
+        super(Agent, self).__init__()
+        
         # Options is the configuration for the Agent.
         self.options = options
 
