@@ -204,6 +204,16 @@ If you are interested in contributing to this project, please refer to the [Cont
 
 Keep checking for Latest Issues and PRs, and feel free to open an Issue or PR for any feature or bug.
 
+You can also join the Huddle01 Discord Community for any queries or discussions.
+
+Discord: [Huddle01 Discord](https://discord.gg/huddle01)
+
+# Setting Up the Project Locally 🛠️
+
+To set up the project locally, follow the steps mentioned in the [Setup Guide](https://github.com/Huddle01/huddle01-ai/blob/main/setup.md)
+
+#
+
 
 
 
