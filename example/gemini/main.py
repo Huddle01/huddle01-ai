@@ -2,8 +2,6 @@ from google import genai
 from dotenv import load_dotenv
 import os
 import asyncio
-from rich.console import Console
-import re
 
 # Load environment variables
 load_dotenv()
@@ -16,12 +14,8 @@ client = genai.Client(
 model_id = "gemini-2.0-flash-exp"
 config = {"response_modalities": ["TEXT"]}
 
-# Initialize rich console
-console = Console()
-
-
 async def main():
-    console.print("[cyan]Welcome to the Gemini chat! Type 'quit' to exit.[/cyan]")
+    print("Welcome to the Gemini chat! Type 'quit' to exit.")
 
     # Start the conversation session
     async with client.aio.live.connect(model=model_id, config=config) as session:
@@ -31,21 +25,18 @@ async def main():
 
             # Exit if the user types 'quit'
             if user_message.lower() == "quit":
-                console.print("[green]Goodbye![/green]")
+                print("Goodbye!")
                 break
 
             # Send the user message to Gemini
             await session.send(user_message, end_of_turn=True)
 
             # Receive and print the response from Gemini
-            console.print("[bold]Gemini:[/bold]")
+            print("Gemini: ", end="", flush=True)
             async for response in session.receive():
-                # Check if the response has text
-                if response.text:
-                    console.print(response.text)
-                    
+                print(response.text, end="", flush=True)
 
-            console.print("\n")  # Add a newline for readability between turns
+            print("\n")  # Add a newline for readability between turns
 
 if __name__ == "__main__":
     asyncio.run(main())
