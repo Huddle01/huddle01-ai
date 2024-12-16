@@ -23,6 +23,10 @@ chatbot:
 	@echo "Running huddle01-ai chatbot example"
 	@poetry run python -m example.chatbot.main
 
+gemini:
+	@echo "Running huddle01-ai gemini example"
+	@poetry run python -m example.gemini.main
+
 run:
 	@echo "Running huddle01-ai conference example"
 	@poetry run python -m example.chatbot.main
