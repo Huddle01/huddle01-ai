@@ -1,7 +1,9 @@
-from google import genai
-from dotenv import load_dotenv
-import os
 import asyncio
+import os
+
+from dotenv import load_dotenv
+from google import genai
+from google.genai import types
 
 # Load environment variables
 load_dotenv()
@@ -13,6 +15,13 @@ client = genai.Client(
 )
 model_id = "gemini-2.0-flash-exp"
 config = {"response_modalities": ["TEXT"]}
+
+conf = types.GenerateContentConfig(
+        system_instruction='I say high, you say low',
+        temperature= 0.3,
+        response_modalities=['TEXT', 'AUDIO'],
+    ),
+
 
 async def main():
     print("Welcome to the Gemini chat! Type 'quit' to exit.")
