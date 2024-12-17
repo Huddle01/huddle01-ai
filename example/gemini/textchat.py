@@ -11,16 +11,18 @@ load_dotenv()
 # Initialize the client
 client = genai.Client(
     api_key=os.getenv("GEMINI_API_KEY"),
-    http_options={'api_version': 'v1alpha'},
+    http_options={"api_version": "v1alpha"},
 )
 model_id = "gemini-2.0-flash-exp"
 config = {"response_modalities": ["TEXT"]}
 
-conf = types.GenerateContentConfig(
-        system_instruction='I say high, you say low',
-        temperature= 0.3,
-        response_modalities=['TEXT', 'AUDIO'],
+conf = (
+    types.GenerateContentConfig(
+        system_instruction="I say high, you say low",
+        temperature=0.3,
+        response_modalities=["TEXT", "AUDIO"],
     ),
+)
 
 
 async def main():
@@ -46,6 +48,7 @@ async def main():
                 print(response.text, end="", flush=True)
 
             print("\n")  # Add a newline for readability between turns
+
 
 if __name__ == "__main__":
     asyncio.run(main())

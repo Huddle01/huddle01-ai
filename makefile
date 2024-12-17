@@ -25,7 +25,7 @@ chatbot:
 
 gemini:
 	@echo "Running huddle01-ai gemini example"
-	@poetry run python -m example.gemini.main
+	@poetry run python -m example.gemini.textchat
 
 voice:
 	@echo "Running huddle01-ai gemini example"
