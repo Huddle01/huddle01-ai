@@ -6,6 +6,7 @@ import numpy as np
 import sounddevice as sd
 from dotenv import load_dotenv
 from google import genai
+from google.genai import types
 
 # Load environment variables
 load_dotenv()
@@ -22,7 +23,9 @@ client = genai.Client(
     http_options={"api_version": "v1alpha"},
 )
 
-config = {"response_modalities": ["TEXT"]}
+config = types.LiveConnectConfig(
+    response_modalities=["TEXT","AUDIO"]
+    )
 
 
 class AudioLoop:
