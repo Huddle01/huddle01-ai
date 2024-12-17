@@ -51,9 +51,9 @@ async def main():
             ),
         )
 
-        # Agent is the Peer which is going to connect to the Room 
+        # Agent is the Peer which is going to connect to the Room
         agent = Agent(
-            options=AgentOptions(rtc_options=rtcOptions, audio_track=AudioTrack() ),
+            options=AgentOptions(rtc_options=rtcOptions, audio_track=AudioTrack()),
         )
 
         # RealTimeModel is the Model which is going to be used by the Agent
@@ -97,15 +97,15 @@ async def main():
         def on_remote_consumer_added(data: RoomEventsData.NewConsumerAdded):
             logger.info(f"Remote Consumer Added: {data}")
 
-            if data['kind'] == 'audio':
-                track = data['consumer'].track
+            if data["kind"] == "audio":
+                track = data["consumer"].track
 
                 if track is None:
                     logger.error("Consumer Track is None, This should never happen.")
                     return
 
-                llm.conversation.add_track(data['consumer_id'], track)
-            
+                llm.conversation.add_track(data["consumer_id"], track)
+
         # @room.on(RoomEvents.ConsumerClosed)
         # def on_remote_consumer_closed(data: RoomEventsData.ConsumerClosed):
         #     logger.info(f"Remote Consumer Closed: {data['consumer_id']}")
@@ -117,7 +117,6 @@ async def main():
         # @room.on(RoomEvents.ConsumerResumed)
         # def on_remote_consumer_resumed(data: RoomEventsData.ConsumerResumed):
         #     logger.info(f"Remote Consumer Resumed: {data['consumer_id']}")
-
 
         # # Agent Events
         @agent.on(AgentsEvents.Connected)
