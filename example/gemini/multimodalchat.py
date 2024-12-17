@@ -22,7 +22,7 @@ client = genai.Client(
     http_options={"api_version": "v1alpha"},
 )
 
-CONFIG = {"generation_config": {"response_modalities": ["AUDIO"]}}
+config = {"response_modalities": ["TEXT"]}
 
 
 class AudioLoop:
@@ -74,15 +74,15 @@ class AudioLoop:
         except asyncio.CancelledError:
             print("🎤 Stopped listening to mic input.")
 
-    async def receive_audio(self):
-        """Receive audio chunks from Gemini and put them into the playback queue."""
+    async def receive_chunks(self):
+        """Receive chunks from Gemini and put them into the playback queue."""
         while True:
             turn = self.session.receive()
             async for response in turn:
                 if response.data:
                     await self.audio_in_queue.put(response.data)
                 elif response.text:
-                    print(response.text, end="")
+                    print(response.text, end="", flush=True)
 
     def fill_outdata(self, outdata: np.ndarray):
         """
@@ -117,7 +117,6 @@ class AudioLoop:
                 print(f"Audio output error: {status}")
             self.fill_outdata(outdata)
 
-        print("🎧 Playing audio responses...")
         try:
             with sd.OutputStream(
                 samplerate=RECEIVE_SAMPLE_RATE,
@@ -135,7 +134,7 @@ class AudioLoop:
         """Main loop to manage tasks and handle graceful exit."""
         try:
             async with (
-                client.aio.live.connect(model=MODEL, config=CONFIG) as session,
+                client.aio.live.connect(model=MODEL, config=config) as session,
                 asyncio.TaskGroup() as tg,
             ):
                 self.session = session
@@ -148,7 +147,7 @@ class AudioLoop:
                 send_text_task = tg.create_task(self.send_text())
                 tg.create_task(self.send_realtime())
                 tg.create_task(self.listen_audio())
-                tg.create_task(self.receive_audio())
+                tg.create_task(self.receive_chunks())
                 tg.create_task(self.play_audio())
 
                 await send_text_task  # Wait for text input or 'q'
@@ -162,6 +161,17 @@ class AudioLoop:
 
 if __name__ == "__main__":
     try:
+        response_modality = (
+            input("Enter response modality (a for audio, t for text): ").strip().lower()
+        )
+        if response_modality == "a":
+            config["response_modalities"] = ["AUDIO"]
+        elif response_modality == "t":
+            config["response_modalities"] = ["TEXT"]
+        else:
+            print("Invalid input. Defaulting to Audio response.")
+            config["response_modalities"] = ["AUDIO"]
+
         main = AudioLoop()
         asyncio.run(main.run())
     except KeyboardInterrupt:
