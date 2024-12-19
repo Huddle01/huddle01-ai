@@ -123,7 +123,7 @@ class RealTimeModel(EnhancedEventEmitter):
         # Logger for RealTimeModel.
         self._logger = logger.getChild(f"RealTimeModel-{self._opts.model}")
 
-        # Conversation is the Conversations which being are happening with the RealTimeModel.
+        # Conversation are all the Remote Tracks who are talking to the RealTimeModel.
         self._conversation: Conversation = Conversation(id = str(uuid.uuid4()))
 
         # Main Task is the Audio Append the RealTimeModel.
@@ -156,7 +156,7 @@ class RealTimeModel(EnhancedEventEmitter):
 
             self._logger.info("Connected to OpenAI RealTime Model")
 
-            self._main_tsk = asyncio.create_task(self._main(), name="RealTimeModel-Main")
+            self._main_tsk = asyncio.create_task(self._main(), name="RealTimeModel-Loop")
 
         except _exceptions.RealtimeModelNotConnectedError:
             raise 
@@ -240,6 +240,9 @@ class RealTimeModel(EnhancedEventEmitter):
 
         event: _api.ServerEventType = data.get("type", "unknown")
 
+        self._logger.info(f"Event: {event}")
+        self._logger.info(f"Data: {data}")
+
         if event == "session.created":
             self._handle_session_created(data)
         elif event == "error":
@@ -276,8 +279,8 @@ class RealTimeModel(EnhancedEventEmitter):
         #     self._handle_response_content_part_added(data)
         elif event == "response.audio.delta":
             self._handle_response_audio_delta(data)
-        # elif event == "response.audio.done":
-        #     self._handle_response_audio_done(data)
+        elif event == "response.audio.done":
+            self._handle_response_audio_done(data)
         # elif event == "response.text.done":
         #     self._handle_response_text_done(data)
         # elif event == "response.audio_transcript.done":
@@ -288,21 +291,21 @@ class RealTimeModel(EnhancedEventEmitter):
         #     self._handle_response_output_item_done(data)
         # elif event == "response.done":
         #     self._handle_response_done(data)
-
         
-        self._logger.info(f"Unhandled Event: {event}")
+        else:
+            self._logger.error(f"Unhandled Event: {event}")
 
     def _handle_response_output_item_done(self, data: dict):
         """
         Response Output Item Done is the Event Handler for the Response Output Item Done Event.
         """
-        self._logger.info("Response Output Item Done")
+        self._logger.info("Response Output Item Done", data)
 
     def _handle_response_content_part_done(self, data: dict):
         """
         Response Content Part Done is the Event Handler for the Response Content Part Done Event.
         """
-        self._logger.info("Response Content Part Done")
+        self._logger.info("Response Content Part Done", data)
 
     def _handle_conversation_item_truncated(self, data: dict):
         """
@@ -314,19 +317,19 @@ class RealTimeModel(EnhancedEventEmitter):
         """
         Conversation Item Deleted is the Event Handler for the Conversation Item Deleted Event.
         """
-        self._logger.info("Conversation Item Deleted")
+        self._logger.info("Conversation Item Deleted", data)
 
     def _handle_conversation_item_created(self, data: dict):
         """
         Conversation Item Created is the Event Handler for the Conversation Item Created Event.
         """
-        self._logger.info("Conversation Item Created")
+        self._logger.info("Conversation Item Created", data)
 
     def _handle_session_created(self, data: dict):
         """
         Session Created is the Event Handler for the Session Created Event.
         """
-        self._logger.info("Session Created")
+        self._logger.info("Session Created", data)
     
     def _handle_error(self, data: dict):
         """
@@ -338,7 +341,7 @@ class RealTimeModel(EnhancedEventEmitter):
         """
         Speech Started is the Event Handler for the Speech Started Event.
         """
-        self._logger.info("Speech Started")
+        self._logger.info("Speech Started", data)
 
         if self.agent.audio_track:
             self.agent.audio_track.flush_audio()
@@ -349,13 +352,13 @@ class RealTimeModel(EnhancedEventEmitter):
         """
         Speech Stopped is the Event Handler for the Speech Stopped Event.
         """
-        self._logger.info("Speech Stopped")
+        self._logger.info("Speech Stopped", data)
 
     def _handle_input_audio_buffer_speech_committed(self, data: dict):
         """
         Speech Committed is the Event Handler for the Speech Committed Event.
         """
-        self._logger.info("Speech Committed")
+        self._logger.info("Speech Committed", data)
 
     def _handle_conversation_item_input_audio_transcription_completed(self, data: dict):
         """
@@ -373,37 +376,40 @@ class RealTimeModel(EnhancedEventEmitter):
         """
         Response Done is the Event Handler for the Response Done Event.
         """
-        self._logger.info("Response Done")
+        self._logger.info("Response Done", data)
 
     def _handle_response_created(self, data: dict):
         """
         Response Created is the Event Handler for the Response Created Event.
         """
-        self._logger.info("Response Created")
+        self._logger.info("Response Created", data)
 
     def _handle_response_output_item_added(self, data: dict):
         """
         Response Output Item Added is the Event Handler for the Response Output Item Added Event.
         """
-        self._logger.info("Response Output Item Added")
+        self._logger.info("Response Output Item Added", data)
 
     def _handle_response_content_part_added(self, data: dict):
         """
         Response Content Part Added is the Event Handler for the Response Content Part Added Event.
         """
-        self._logger.info("Response Content Part Added")
+        self._logger.info("Response Content Part Added", data)
 
-    def _handle_response_audio_delta(self, data: dict):
+    def _handle_response_audio_delta(self, response_audio_delta: _api.ServerEvent.ResponseAudioDelta):
         """
         Response Audio Delta is the Event Handler for the Response Audio Delta Event.
         """
         self._logger.info("Response Audio Delta")
 
-        base64_audio = data.get("delta")
+        base64_audio = response_audio_delta['delta']
+
+        item_id = str(response_audio_delta.get("item_id"))
 
         if base64_audio and self.agent.audio_track:
             self.agent.emit(AgentsEvents.Speaking)
-            self.agent.audio_track.enqueue_audio(base64_audio=base64_audio)
+
+            self.agent.audio_track.enqueue_audio(id=item_id,base64_audio=base64_audio)
 
     def _handle_response_audio_transcript_delta(self, data: dict):
         """
@@ -415,7 +421,7 @@ class RealTimeModel(EnhancedEventEmitter):
         """
         Response Audio Done is the Event Handler for the Response Audio Done Event.
         """
-        self._logger.info("Response Audio Done")
+        self._logger.info("Response Audio Done", data)
 
     def _handle_response_text_done(self, data: dict):
         """

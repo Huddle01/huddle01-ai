@@ -577,22 +577,24 @@ name = "huddle01"
 version = "1.0.5"
 description = "Python Real-Time-SDK for Huddle01 dRTC Network"
 optional = false
-python-versions = "<4.0,>=3.12"
-files = [
-    {file = "huddle01-1.0.5-py3-none-any.whl", hash = "sha256:fd18266ca55d1f2fb89265760afb1828fd4065065c1cb3efdfc54a4309318a75"},
-    {file = "huddle01-1.0.5.tar.gz", hash = "sha256:0b0abeefa4614569a401c3410159ab46e9f3b03f020e84c3f7c5c28fb75e586e"},
-]
+python-versions = "^3.12"
+files = []
+develop = true
 
 [package.dependencies]
-aiohttp = ">=3.10.10,<4.0.0"
-asyncio = ">=3.4.3,<4.0.0"
-protobuf = ">=5.28.2,<6.0.0"
+aiohttp = "^3.10.10"
+asyncio = "^3.4.3"
+protobuf = "^5.28.2"
 pydantic = ">=1.10.17,<3.0.0"
 pyee = "11.1.0"
-pymediasoup = ">=1.0.1,<2.0.0"
-python-dotenv = ">=1.0.1,<2.0.0"
-ruff = ">=0.6.9,<0.7.0"
-websockets = ">=13.1,<14.0"
+pymediasoup = "^1.0.1"
+python-dotenv = "^1.0.1"
+ruff = "^0.6.9"
+websockets = "^13.1"
+
+[package.source]
+type = "directory"
+url = "../shinigami/packages/huddle01-python"
 
 [[package]]
 name = "idna"
@@ -1324,4 +1326,4 @@ propcache = ">=0.2.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "c554680895ecb9b7d3b51e0bdcacd1ce2953113e5c55a72dcba04e26b3de753b"
+content-hash = "8f0f5301a5e75d97c258e6f58242759c442a48cfb824bde519e6f38d777f68f0"

@@ -57,7 +57,7 @@ class AudioTrack(MediaStreamTrack):
     def __repr__(self) -> str:
         return f"<AudioTrack kind={self.kind} state={self.readyState}> sample_rate={self.sample_rate} channels={self.channels} sample_width={self.sample_width}>"
 
-    def enqueue_audio(self, base64_audio: str):
+    def enqueue_audio(self, id: str, base64_audio: str):
         """Process and add audio data directly to the AudioFifo"""
         if self.readyState != "live":
             return
@@ -125,6 +125,7 @@ class AudioTrack(MediaStreamTrack):
             else:
                 # Update frame properties
                 frame.sample_rate = self.sample_rate
+
                 frame.time_base = fractions.Fraction(1, self.sample_rate)
 
             # Set frame PTS
