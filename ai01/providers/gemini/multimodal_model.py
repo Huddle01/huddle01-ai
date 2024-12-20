@@ -1,24 +1,26 @@
-from asyncio.taskgroups import TaskGroup
+import asyncio
+import logging
 import uuid
+
 from google import genai
+from google.genai import types
 from pydantic.v1.main import BaseModel
+
 from ai01.agent.agent import Agent
 from ai01.providers.gemini.conversation import Conversation
-from ...utils.emitter import EnhancedEventEmitter
-import logging
-import asyncio
 
-from google.genai import types
+from ...utils.emitter import EnhancedEventEmitter
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 
 class MultiModalModelOptions(BaseModel):
     """
     MultiModalModelOptions is the configuration for the MultiModalModel
     """
 
-    gemini_api_key:str
+    gemini_api_key: str
     """
     Gemini API Key is the API Key for the Gemini Provider
     """
@@ -28,21 +30,18 @@ class MultiModalModelOptions(BaseModel):
     Model is the Model which is going to be used by the MultiModalModel
     """
 
-    config = types.LiveConnectConfig(
-        response_modalities=["TEXT","AUDIO"]
-        )
+    config = types.LiveConnectConfig(response_modalities=["TEXT", "AUDIO"])
 
     """
     Config is the Config which the Model is going to use for the conversation
     """
-
 
     class Config:
         arbitrary_types_allowed = True
 
 
 class MultiModalModel(EnhancedEventEmitter):
-    def __init__(self, agent:Agent,options:MultiModalModelOptions):
+    def __init__(self, agent: Agent, options: MultiModalModelOptions):
         self._agent = agent
         self._options = options
 
@@ -55,7 +54,7 @@ class MultiModalModel(EnhancedEventEmitter):
 
         self._logger = logger.getChild(f"MultiModalModel-{self._options.model}")
 
-        self._conversation:Conversation = Conversation(id=str(uuid.uuid4()))
+        self._conversation: Conversation = Conversation(id=str(uuid.uuid4()))
 
         self.session = None
 
@@ -68,9 +67,7 @@ class MultiModalModel(EnhancedEventEmitter):
     def conversation(self):
         return self._conversation
 
-
-    async def send_audio(self,audio_bytes:bytes):
-
+    async def send_audio(self, audio_bytes: bytes):
         if self.session is None:
             raise Exception("Session is not connected")
 
@@ -81,11 +78,12 @@ class MultiModalModel(EnhancedEventEmitter):
             turn = await self.session.receive()
             async for response in turn:
                 if response.data:
-                    await self.emit("response",response.data)
+                    self._agent.audio_track.enqueue_audio(response.data)
+
                 elif response.text:
-                    print(response.text,end="",flush=True)
+                    print(response.text, end="", flush=True)
                 elif response.image:
-                    print(response.image,end="",flush=True)
+                    print(response.image, end="", flush=True)
 
     async def fetch_audio_from_rtc(self):
         while True:
@@ -101,17 +99,18 @@ class MultiModalModel(EnhancedEventEmitter):
 
             await self.send_audio(audio_chunk)
 
-
     async def connect(self):
         try:
             async with (
-                self.client.aio.live.connect(model=self._options.model,config=self._options.config) as session,
-                asyncio.TaskGroup() as tg
+                self.client.aio.live.connect(
+                    model=self._options.model, config=self._options.config
+                ) as session,
+                asyncio.TaskGroup() as tg,
             ):
                 self.session = session
 
-
                 tg.create_task(self.handle_response())
+                tg.create_task(self.fetch_audio_from_rtc())
 
         except Exception as e:
             self._logger.error(f"Error in connecting to the Gemini Model: {e}")
