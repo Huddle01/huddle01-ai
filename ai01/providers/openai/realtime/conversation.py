@@ -50,18 +50,20 @@ class Conversation:
     def active(self):
         return self._active
     
-    def add_track(self, id: str, track: MediaStreamTrack):
+    def add_track(self, track: MediaStreamTrack):
         """
         Add a Track to the Conversation, which streamlines conversation into one Audio Stream.
-        which can be later retrieved using the `recv_frame` method and feeded to the Model.
+        which can be later retrieved using the `recv` method and feeded to the Model.
         """
         if track.kind != "audio":
             raise _exceptions.RealtimeModelTrackInvalidError()
         
-        if self._track_fut.get(id):
+        track_id = track.id
+        
+        if self._track_fut.get(track_id):
             raise _exceptions.RealtimeModelError("Track is already started.")
 
-        async def handle_audio_frame():
+        async def handle_track():
             try:
                 while self._active and track.readyState != "ended":
                     frame = await track.recv()
@@ -72,18 +74,27 @@ class Conversation:
                         continue
                     
                     self.audio_resampler.resample(frame)
+
+                if task := self._track_fut.get(track_id):
+                    task.cancel()
+                    del self._track_fut[track_id]
+
             except Exception as e:
                 self.logger.error(f"Error in handling audio frame: {e}")
 
-        self._started_fut = asyncio.create_task(handle_audio_frame(), name=f"Conversation-{id}")
-
-        self._track_fut[id] = self._started_fut
+        self._track_fut[track_id] = asyncio.create_task(handle_track(), name=f"Conversation-{id}")
 
     def stop(self):
         """
         Stop the Conversation and clear the Audio FIFO Buffer.
         """
         self._active = False
+
+        for task in self._track_fut.values():
+            if not task.done():
+                task.cancel()
+
+        self._track_fut.clear()
 
         self.audio_resampler.clear()
 

@@ -77,6 +77,8 @@ class SocketClient:
 
             await self.__ws.send(dump_data)
 
+            return
+
         except Exception as e:
             self._logger.error(f"Error sending message: {e}")
             raise

@@ -4,7 +4,7 @@ import os
 
 from dotenv import load_dotenv
 
-from ai01.agent import Agent, AgentOptions, AgentsEvents
+from ai01.agent import Agent, AgentOptions
 from ai01.providers.openai import AudioTrack
 from ai01.providers.openai.realtime import RealTimeModel, RealTimeModelOptions
 from ai01.rtc import (
@@ -97,14 +97,9 @@ async def main():
         def on_remote_consumer_added(data: RoomEventsData.NewConsumerAdded):
             logger.info(f"Remote Consumer Added: {data}")
 
-            if data['kind'] == 'audio':
-                track = data['consumer'].track
-
-                if track is None:
-                    logger.error("Consumer Track is None, This should never happen.")
-                    return
-
-                llm.conversation.add_track(data['consumer_id'], track)
+            if track := data['consumer'].track:
+                if track.kind == 'audio':
+                    llm.add_track(track)
             
         # @room.on(RoomEvents.ConsumerClosed)
         # def on_remote_consumer_closed(data: RoomEventsData.ConsumerClosed):
@@ -118,27 +113,6 @@ async def main():
         # def on_remote_consumer_resumed(data: RoomEventsData.ConsumerResumed):
         #     logger.info(f"Remote Consumer Resumed: {data['consumer_id']}")
 
-
-        # # Agent Events
-        @agent.on(AgentsEvents.Connected)
-        def on_agent_connected():
-            logger.info("Agent Connected")
-
-        @agent.on(AgentsEvents.Disconnected)
-        def on_agent_disconnected():
-            logger.info("Agent Disconnected")
-
-        @agent.on(AgentsEvents.Speaking)
-        def on_agent_speaking():
-            logger.info("Agent Speaking")
-
-        @agent.on(AgentsEvents.Listening)
-        def on_agent_listening():
-            logger.info("Agent Listening")
-
-        @agent.on(AgentsEvents.Thinking)
-        def on_agent_thinking():
-            logger.info("Agent Thinking")
 
         # Connect to the LLM to the Room
         await llm.connect()

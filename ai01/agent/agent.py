@@ -1,15 +1,17 @@
 import logging
+from dataclasses import dataclass
 from typing import Optional
 
-from pydantic import BaseModel
+from ai01 import RTC, RTCOptions
+from ai01.providers.openai.audio_track import AudioTrack
+from ai01.utils.emitter import EnhancedEventEmitter
 
-from ..providers.openai.audio_track import AudioTrack
-from ..rtc import RTC, RTCOptions
-from ..utils.emitter import EnhancedEventEmitter
+from . import _api
 from ._exceptions import RoomNotConnectedError, RoomNotCreatedError
 
 
-class AgentOptions(BaseModel):
+@dataclass
+class AgentOptions:
     """ "
     Every Agent is created with a set of options that define the configuration for the Agent.
 
@@ -32,9 +34,8 @@ class AgentOptions(BaseModel):
         arbitrary_types_allowed = True
 
 
-
 logger = logging.getLogger("Agent")
-class Agent(EnhancedEventEmitter):
+class Agent(EnhancedEventEmitter[_api.AgentEventTypes]):
     """
     Agents is defined as the higher level user which is its own entity and has exposed APIs to
     interact with different Models and Outer World using dRTC.
@@ -46,6 +47,9 @@ class Agent(EnhancedEventEmitter):
 
     def __init__(self, options: AgentOptions):
         super(Agent, self).__init__()
+
+        # State of the Agent.
+        self._state: _api.AgentState = 'idle'
         
         # Options is the configuration for the Agent.
         self.options = options
@@ -78,6 +82,19 @@ class Agent(EnhancedEventEmitter):
             raise RoomNotCreatedError()
 
         return self.__rtc.room
+    
+    def _update_state(self, state: _api.AgentState):
+        """
+        Update the State of the Agent.
+        """
+        self._state = state
+
+        if self._state == 'listening':
+            self.emit('listening')
+        elif self._state == 'speaking':
+            self.emit('speaking')
+        elif self._state == 'idle':
+            self.emit('idle')
 
     async def join(self):
         """
@@ -119,3 +136,5 @@ class Agent(EnhancedEventEmitter):
             raise RoomNotCreatedError()
 
         await room.connect()
+
+        self.emit('connected')

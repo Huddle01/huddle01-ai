@@ -1,93 +1,94 @@
+from __future__ import annotations
+
 import asyncio
-import base64
-import fractions
 import logging
 import threading
+from contextlib import contextmanager
+from dataclasses import dataclass
 
 import numpy as np
 from aiortc.mediastreams import MediaStreamError, MediaStreamTrack
 from av import AudioFrame
 from av.audio.fifo import AudioFifo
-from pydantic import BaseModel
+
+from ai01 import rtc
 
 logger = logging.getLogger(__name__)
 
+# Constants
+AUDIO_PTIME = 0.020  # 20ms
+DEFAULT_SAMPLE_RATE = 24000
+DEFAULT_CHANNELS = 1
+DEFAULT_SAMPLE_WIDTH = 2
 
-class AudioTrackOptions(BaseModel):
-    """Audio Track Options"""
+@dataclass
+class AudioTrackOptions:
+    sample_rate: int = DEFAULT_SAMPLE_RATE
+    channels: int = DEFAULT_CHANNELS 
+    sample_width: int = DEFAULT_SAMPLE_WIDTH
 
-    sample_rate: int = 24000
-    """
-    Sample Rate is the number of samples of audio carried per second, measured in Hz, Default is 24000.
-    """
-
-    channels: int = 1
-    """
-    Channels is the number of audio channels, Default is 1, which is mono.
-    """
-
-    sample_width: int = 2
-    """
-    Sample Width is the number of bytes per sample, Default is 2, which is 16 bits.
-    """
-
+class AudioFIFOManager:
+    def __init__(self):
+        self.fifo = AudioFifo()
+        self.lock = threading.Lock()
+       
+    @contextmanager
+    def fifo_operation(self):
+        with self.lock:
+            yield self.fifo
+           
+    def flush(self):
+        with self.lock:
+            self.fifo = AudioFifo()
 
 class AudioTrack(MediaStreamTrack):
     kind = "audio"
 
     def __init__(self, options=AudioTrackOptions()):
-        print("AudioTrack __init__")
         super().__init__()
-
-        # Audio configuration
         self.sample_rate = options.sample_rate
         self.channels = options.channels
-        self.sample_width = options.sample_width  # 2 bytes per sample (16 bits)
+        self.sample_width = options.sample_width # 2 bytes per sample (16-bit PCM)
 
         self._start = None
         self._timestamp = 0
+        self.frame_samples = rtc.get_frame_size(self.sample_rate, AUDIO_PTIME)
 
-        self.AUDIO_PTIME = 0.020  # 20ms audio packetization
-        self.frame_samples = int(self.AUDIO_PTIME * self.sample_rate)
+        self._pushed_duration = 0.0
+        self._total_played_time = None
 
-        # Audio FIFO buffer
-        self.audio_fifo = AudioFifo()
-        self.fifo_lock = threading.Lock()
+        self.fifo_manager = AudioFIFOManager()
 
     def __repr__(self) -> str:
-        return f"<AudioTrack kind={self.kind} state={self.readyState}> sample_rate={self.sample_rate} channels={self.channels} sample_width={self.sample_width}>"
+        return f"<AudioTrack kind={self.kind} state={self.readyState}> sample_rate={self.sample_rate} channels={self.channels} sample_width={self.sample_width}>" 
 
-    def enqueue_audio(self, id: str, base64_audio: str):
-        """Process and add audio data directly to the AudioFifo"""
-        if self.readyState != "live":
-            return
+    @property 
+    def audio_samples(self) -> int:
+        """
+        Audio Samples Returns the number of audio samples that have been played.
+        """
+        if self._total_played_time is not None:
+            return int(self._total_played_time * self.sample_rate)
+        queued_duration = self.fifo_manager.fifo.samples / self.sample_rate
+        
+        return int((self._pushed_duration - queued_duration) * self.sample_rate)
 
+    def enqueue_audio(self, content_index:int, audio: AudioFrame):
         try:
-            audio_bytes = base64.b64decode(base64_audio)
-            audio_array = np.frombuffer(audio_bytes, dtype=np.int16)
-            audio_array = audio_array.reshape(self.channels, -1)
-
-            frame = AudioFrame.from_ndarray(
-                audio_array,
-                format="s16",
-                layout="mono" if self.channels == 1 else "stereo",
-            )
-            frame.sample_rate = self.sample_rate
-            frame.time_base = fractions.Fraction(1, self.sample_rate)
-
-            with self.fifo_lock:
-                self.audio_fifo.write(frame)
-
+            if self.readyState != "live":
+                return MediaStreamError("AudioTrack is not live")
+        
+            with self.fifo_manager.fifo_operation() as fifo:
+                fifo.write(audio)
+                self._pushed_duration += audio.samples / self.sample_rate
         except Exception as e:
             logger.error(f"Error in enqueue_audio: {e}", exc_info=True)
 
     def flush_audio(self):
         """Flush the audio FIFO buffer"""
-        with self.fifo_lock:
-            self.audio_fifo = AudioFifo()
+        self.fifo_manager.flush()
 
     async def recv(self) -> AudioFrame:
-        """Receive the next audio frame"""
         if self.readyState != "live":
             raise MediaStreamError
 
@@ -95,49 +96,35 @@ class AudioTrack(MediaStreamTrack):
             self._start = asyncio.get_event_loop().time()
             self._timestamp = 0
 
-        samples = self.frame_samples
-        self._timestamp += samples
+        self._timestamp += self.frame_samples
 
         target_time = self._start + (self._timestamp / self.sample_rate)
         current_time = asyncio.get_event_loop().time()
+        
         wait = target_time - current_time
-
         if wait > 0:
             await asyncio.sleep(wait)
 
         try:
-            # Read frames from the FIFO buffer
-            with self.fifo_lock:
-                frame = self.audio_fifo.read(samples)
+            with self.fifo_manager.fifo_operation() as fifo:
+                frame = fifo.read(self.frame_samples)
 
             if frame is None:
-                # If no data is available, generate silence
-                frame = AudioFrame(
-                    format="s16",
-                    layout="mono" if self.channels == 1 else "stereo",
-                    samples=samples,
+                silence_buffer = np.zeros(self.frame_samples, dtype=np.int16).tobytes()
+
+                frame = rtc.convert_to_audio_frame(
+                    silence_buffer,
+                    self.sample_rate,
+                    self.channels,
+                    len(silence_buffer) // 2
                 )
-                for p in frame.planes:
-                    p.update(np.zeros(samples, dtype=np.int16).tobytes())
 
-                frame.sample_rate = self.sample_rate
-                frame.time_base = fractions.Fraction(1, self.sample_rate)
-            else:
-                # Update frame properties
-                frame.sample_rate = self.sample_rate
-
-                frame.time_base = fractions.Fraction(1, self.sample_rate)
-
-            # Set frame PTS
             frame.pts = self._timestamp
+            
+            self._total_played_time = self._timestamp / self.sample_rate
 
             return frame
 
         except Exception as e:
             logger.error(f"Error in recv: {e}", exc_info=True)
             raise MediaStreamError("Error processing audio frame")
-
-    def stop(self) -> None:
-        """Stop the track"""
-        if self.readyState == "live":
-            super().stop()
