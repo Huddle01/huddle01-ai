@@ -3,8 +3,8 @@ from typing import Optional
 
 from pydantic import BaseModel
 
-from ..providers.openai.audio_track import AudioTrack
 from ..rtc import RTC, RTCOptions
+from ..rtc.audio_track import AudioTrack
 from ..utils.emitter import EnhancedEventEmitter
 from ._exceptions import RoomNotConnectedError, RoomNotCreatedError
 
@@ -46,7 +46,7 @@ class Agent(EnhancedEventEmitter):
 
     def __init__(self, options: AgentOptions):
         super(Agent, self).__init__()
-        
+
         # Options is the configuration for the Agent.
         self.options = options
 
@@ -62,7 +62,7 @@ class Agent(EnhancedEventEmitter):
     @property
     def rtc(self):
         return self.__rtc
-    
+
     @property
     def logger(self):
         return self._logger

@@ -30,7 +30,7 @@ class MultiModalModelOptions(BaseModel):
     Model is the Model which is going to be used by the MultiModalModel
     """
 
-    config = types.LiveConnectConfig(response_modalities=["TEXT", "AUDIO"])
+    config = types.LiveConnectConfig(response_modalities=["AUDIO"])
 
     """
     Config is the Config which the Model is going to use for the conversation
@@ -42,7 +42,7 @@ class MultiModalModelOptions(BaseModel):
 
 class MultiModalModel(EnhancedEventEmitter):
     def __init__(self, agent: Agent, options: MultiModalModelOptions):
-        self._agent = agent
+        self.agent = agent
         self._options = options
 
         self.client = genai.Client(
@@ -54,7 +54,7 @@ class MultiModalModel(EnhancedEventEmitter):
 
         self._logger = logger.getChild(f"MultiModalModel-{self._options.model}")
 
-        self._conversation: Conversation = Conversation(id=str(uuid.uuid4()))
+        self.conversation: Conversation = Conversation(id=str(uuid.uuid4()))
 
         self.session = None
 
@@ -63,9 +63,6 @@ class MultiModalModel(EnhancedEventEmitter):
 
     def __repr__(self):
         return f"Gemini MultiModal: {self._options.model}"
-
-    def conversation(self):
-        return self._conversation
 
     async def send_audio(self, audio_bytes: bytes):
         if self.session is None:
@@ -78,7 +75,7 @@ class MultiModalModel(EnhancedEventEmitter):
             turn = await self.session.receive()
             async for response in turn:
                 if response.data:
-                    self._agent.audio_track.enqueue_audio(response.data)
+                    self.agent.audio_track.enqueue_audio(response.data)
 
                 elif response.text:
                     print(response.text, end="", flush=True)
