@@ -1,5 +1,4 @@
 import json
-import logging
 
 from huddle01 import (
     AccessToken,
@@ -12,9 +11,7 @@ from huddle01 import (
 from huddle01.local_peer import ProduceOptions
 from pydantic import BaseModel
 
-logging.basicConfig(level=logging.INFO)
-
-logger = logging.getLogger("RTC")
+from ai01.utils import logger
 
 
 class RTCOptions(BaseModel):
@@ -137,8 +134,6 @@ class RTC:
                 - `metadata`: Optional metadata for the Room (must be JSON serializable).
                 - `role`: The role of the local user in the Room (e.g., "host", "guest").
         """
-        self._logger.info("Join Huddle01 dRTC Network")
-
         accessTokenData = AccessTokenData(
             room_id=self._options.room_id,
             api_key=self._options.api_key,

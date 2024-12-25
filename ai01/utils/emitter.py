@@ -1,10 +1,10 @@
 import inspect
-import logging
 from typing import Callable, Dict, Generic, Optional, Set, TypeVar
+
+from ai01.utils import logger
 
 T_contra = TypeVar("T_contra", contravariant=True)
 
-logger = logging.getLogger("ai01")
 
 class EnhancedEventEmitter(Generic[T_contra]):
     def __init__(self) -> None:

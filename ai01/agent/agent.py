@@ -1,9 +1,9 @@
-import logging
 from dataclasses import dataclass
 from typing import Optional
 
-from ai01 import RTC, RTCOptions
 from ai01.providers.openai.audio_track import AudioTrack
+from ai01.rtc import RTC, RTCOptions
+from ai01.utils import logger
 from ai01.utils.emitter import EnhancedEventEmitter
 
 from . import _api
@@ -33,8 +33,6 @@ class AgentOptions:
     class Config:
         arbitrary_types_allowed = True
 
-
-logger = logging.getLogger("Agent")
 class Agent(EnhancedEventEmitter[_api.AgentEventTypes]):
     """
     Agents is defined as the higher level user which is its own entity and has exposed APIs to
@@ -115,8 +113,6 @@ class Agent(EnhancedEventEmitter[_api.AgentEventTypes]):
                 print("Room successfully joined!")
             ```
         """
-        self.logger.info("Joining Agent to the dRTC Network")
-
         room = await self.__rtc.join()
 
         if not room:
@@ -128,13 +124,13 @@ class Agent(EnhancedEventEmitter[_api.AgentEventTypes]):
         """
         Connects the Agent to the Room, This is only available after the Agent is joined to the dRTC Network.
         """
-        self.logger.info("Connecting Agent to the Room")
-
         room = self.__rtc.room
 
         if not room:
             raise RoomNotCreatedError()
 
         await room.connect()
+
+        self.logger.info("🔔 Agent Connected to the Huddle01 Room")
 
         self.emit('connected')

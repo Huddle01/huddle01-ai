@@ -1,13 +1,13 @@
 import asyncio
-import logging
 from typing import Dict
 
 from aiortc.mediastreams import MediaStreamTrack
 
+from ai01.utils import logger
+
 from ....rtc.audio_resampler import AudioResampler
 from . import _exceptions
 
-logger = logging.getLogger(__name__)
 
 class Conversation:
     def __init__(self, id: str):
@@ -67,6 +67,10 @@ class Conversation:
             try:
                 while self._active and track.readyState != "ended":
                     frame = await track.recv()
+
+                    frame_data = frame.to_ndarray()
+
+                    logger.info(f"Received Frame: {frame_data}")
                     
                     frame.pts = None
 

@@ -1,7 +1,6 @@
 import asyncio
 import base64
 import json
-import logging
 import time
 import uuid
 from typing import Dict, Literal, Optional, Union
@@ -10,14 +9,12 @@ from aiortc.mediastreams import MediaStreamTrack
 
 from ai01.agent import Agent
 from ai01.rtc.utils import convert_to_audio_frame
+from ai01.utils import logger
 from ai01.utils.emitter import EnhancedEventEmitter
 from ai01.utils.socket import SocketClient
 
 from . import _api, _exceptions
 from .conversation import Conversation
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 
 class RealTimeModel(EnhancedEventEmitter[_api.EventTypes]):
@@ -44,7 +41,7 @@ class RealTimeModel(EnhancedEventEmitter[_api.EventTypes]):
         self.turn_detection = options.server_vad_opts
 
         # Logger for RealTimeModel.
-        self._logger = logger.getChild(f"RealTimeModel-{self._opts.model}")
+        self._logger = logger.getChild("OpenAI RealtimeModel")
 
         # Pending Responses which the Server will keep on generating.
         self._pending_responses : Dict[str, _api.RealtimeResponse] = {}
@@ -72,17 +69,13 @@ class RealTimeModel(EnhancedEventEmitter[_api.EventTypes]):
         Connects the RealTimeModel to the RealTime API.
         """
         try:
-            self._logger.info(
-                f"Connecting to OpenAI RealTime Model at {self._opts.base_url}"
-            )
-
             await self.socket.connect()
 
             asyncio.create_task(self._socket_listen(), name="Socket-Listen")
 
-            await self._session_update()
+            self._logger.info("✅ Connected to OpenAI RealTime Model")
 
-            self._logger.info("Connected to OpenAI RealTime Model")
+            await self._session_update()
 
             self._main_tsk = asyncio.create_task(self._main(), name="RealTimeModel-Loop")
 
@@ -122,8 +115,6 @@ class RealTimeModel(EnhancedEventEmitter[_api.EventTypes]):
         Updates the session on the OpenAI RealTime API.
         """
         try:
-            self._logger.info("Send Session Updated")
-
             if not self.socket.connected:
                 raise _exceptions.RealtimeModelNotConnectedError()
 
@@ -150,6 +141,8 @@ class RealTimeModel(EnhancedEventEmitter[_api.EventTypes]):
 
             await self.socket.send(payload)
 
+            self._logger.info("✅ Sent Initial Session Updated")
+
         except Exception as e:
             self._logger.error(f"Error Sending Session Update Event: {e}")
             raise
@@ -169,6 +162,8 @@ class RealTimeModel(EnhancedEventEmitter[_api.EventTypes]):
             "audio": pcm_base64,
         }
 
+        self._logger.info("🔊 Sending Audio Append")
+
         await self.socket.send(payload)
         
     async def _handle_message(self, message: Union[str, bytes]):
@@ -179,6 +174,8 @@ class RealTimeModel(EnhancedEventEmitter[_api.EventTypes]):
         # Session Events
         if event == "session.created":
             self._handle_session_created(data)
+        if event == 'session.updated':
+            self.__handle_session_updated(data)
 
         # Response Events
         elif event == "response.created":
@@ -270,7 +267,13 @@ class RealTimeModel(EnhancedEventEmitter[_api.EventTypes]):
         """
         Session Created is the Event Handler for the Session Created Event.
         """
-        self._logger.info("Session Created", data)
+        self._logger.debug("🔔 Session Created", data)
+
+    def __handle_session_updated(self, session_updated: _api.ServerEvent.SessionUpdated):
+        """
+        Session Updated is the Event Handler for the Session Updated Event.
+        """
+        self._logger.debug("🔔 Session Updated", session_updated)
     
     def _handle_error(self, data: dict):
         """

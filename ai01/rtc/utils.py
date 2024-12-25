@@ -1,13 +1,13 @@
 import fractions
-import logging
 from typing import Union
 
 import numpy as np
 from av import AudioFrame
 
+from ai01.utils import logger
+
 AUDIO_PTIME = 0.020  # 20ms
 
-logger = logging.getLogger(__name__)
 
 def get_frame_size(sample_rate: int, ptime: float) -> int:
    """

@@ -1,5 +1,4 @@
 import asyncio
-import logging
 import os
 
 from dotenv import load_dotenv
@@ -15,14 +14,13 @@ from ai01.rtc import (
     RoomEventsData,
     RTCOptions,
 )
+from ai01.utils import logger
 
 from .prompt import bot_prompt
 
 load_dotenv()
 
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("Chatbot")
 
 
 async def main():
@@ -71,7 +69,7 @@ async def main():
         # Room Events
         @room.on(RoomEvents.RoomJoined)
         def on_room_joined():
-            logger.info("Room Joined")
+            logger.info("Chatbot Joined the Huddle01 Room")
 
         # @room.on(RoomEvents.NewPeerJoined)
         # def on_new_remote_peer(data: RoomEventsData.NewPeerJoined):
@@ -95,10 +93,9 @@ async def main():
 
         @room.on(RoomEvents.NewConsumerAdded)
         def on_remote_consumer_added(data: RoomEventsData.NewConsumerAdded):
-            logger.info(f"Remote Consumer Added: {data}")
-
             if track := data['consumer'].track:
                 if track.kind == 'audio':
+                    logger.info(f"✅ New Audio Consumer Added: {data['consumer_id']}")
                     llm.add_track(track)
             
         # @room.on(RoomEvents.ConsumerClosed)

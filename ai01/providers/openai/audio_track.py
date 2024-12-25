@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 import threading
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -12,8 +11,7 @@ from av import AudioFrame
 from av.audio.fifo import AudioFifo
 
 from ai01 import rtc
-
-logger = logging.getLogger(__name__)
+from ai01.utils import logger
 
 # Constants
 AUDIO_PTIME = 0.020  # 20ms
