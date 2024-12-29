@@ -3,14 +3,16 @@ from ._api import (
     AudioFormat,
     ClientEvent,
     ClientEventType,
+    EventTypes,
     Modality,
+    RealTimeModelOptions,
     RealTimeModels,
     ServerEvent,
     ServerEventType,
     ToolChoice,
     Voice,
 )
-from .realtime_model import RealTimeModel, RealTimeModelOptions
+from .realtime_model import RealTimeModel
 
 __all__ = [
     "api",
@@ -25,6 +27,7 @@ __all__ = [
     "ToolChoice",
     "ClientEventType",
     "ServerEventType",
+    "EventTypes",
 ]
 
 

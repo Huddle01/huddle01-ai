@@ -1,10 +1,9 @@
 import asyncio
-import logging
 import os
 
 from dotenv import load_dotenv
 
-from ai01.agent import Agent, AgentOptions, AgentsEvents
+from ai01.agent import Agent, AgentOptions
 from ai01.providers.openai import AudioTrack
 from ai01.providers.openai.realtime import RealTimeModel, RealTimeModelOptions
 from ai01.rtc import (
@@ -15,14 +14,13 @@ from ai01.rtc import (
     RoomEventsData,
     RTCOptions,
 )
+from ai01.utils import logger
 
 from .prompt import bot_prompt
 
 load_dotenv()
 
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("Chatbot")
 
 
 async def main():
@@ -71,7 +69,7 @@ async def main():
         # Room Events
         @room.on(RoomEvents.RoomJoined)
         def on_room_joined():
-            logger.info("Room Joined")
+            logger.info("Chatbot Joined the Huddle01 Room")
 
         # @room.on(RoomEvents.NewPeerJoined)
         # def on_new_remote_peer(data: RoomEventsData.NewPeerJoined):
@@ -95,16 +93,10 @@ async def main():
 
         @room.on(RoomEvents.NewConsumerAdded)
         def on_remote_consumer_added(data: RoomEventsData.NewConsumerAdded):
-            logger.info(f"Remote Consumer Added: {data}")
-
-            if data['kind'] == 'audio':
-                track = data['consumer'].track
-
-                if track is None:
-                    logger.error("Consumer Track is None, This should never happen.")
-                    return
-
-                llm.conversation.add_track(data['consumer_id'], track)
+            if track := data['consumer'].track:
+                if track.kind == 'audio':
+                    logger.info(f"✅ New Audio Consumer Added: {data['consumer_id']}")
+                    llm.add_track(track)
             
         # @room.on(RoomEvents.ConsumerClosed)
         # def on_remote_consumer_closed(data: RoomEventsData.ConsumerClosed):
@@ -118,27 +110,6 @@ async def main():
         # def on_remote_consumer_resumed(data: RoomEventsData.ConsumerResumed):
         #     logger.info(f"Remote Consumer Resumed: {data['consumer_id']}")
 
-
-        # # Agent Events
-        @agent.on(AgentsEvents.Connected)
-        def on_agent_connected():
-            logger.info("Agent Connected")
-
-        @agent.on(AgentsEvents.Disconnected)
-        def on_agent_disconnected():
-            logger.info("Agent Disconnected")
-
-        @agent.on(AgentsEvents.Speaking)
-        def on_agent_speaking():
-            logger.info("Agent Speaking")
-
-        @agent.on(AgentsEvents.Listening)
-        def on_agent_listening():
-            logger.info("Agent Listening")
-
-        @agent.on(AgentsEvents.Thinking)
-        def on_agent_thinking():
-            logger.info("Agent Thinking")
 
         # Connect to the LLM to the Room
         await llm.connect()

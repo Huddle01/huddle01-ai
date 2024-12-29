@@ -1,11 +1,93 @@
 from __future__ import annotations
 
-from typing import Literal, Union
+import asyncio
+from dataclasses import dataclass
+from typing import AsyncIterable, Literal, Optional, Union
 
+import av
+from pydantic import BaseModel
 from typing_extensions import NotRequired, TypedDict
 
 SAMPLE_RATE = 24000
 NUM_CHANNELS = 1
+
+class RealTimeModelOptions(BaseModel):
+    """
+    RealTimeModelOptions is the configuration for the RealTimeModel.
+    """
+
+    oai_api_key: str
+    """
+    OpenAI API Key is the API Key for the OpenAI API.
+    """
+
+    model: RealTimeModels = "gpt-4o-realtime-preview"
+    """
+    Model is the RealTimeModel to be used, defaults to gpt-4o-realtime-preview.
+    """
+
+    instructions: str = ""
+    """
+    Instructions is the Initial Prompt given to the Model.
+    """
+
+    modalities: list[Modality] = ["text", "audio"]
+    """
+    Modalities is the list of things to be used by the Model.
+    """
+
+    voice: Voice = "alloy"
+    """
+    Voice is the of audio voices which will be generated and returned by the Model.
+    """
+
+    temperature: float = 0.8
+    """
+    Temperature is the randomness of the Model, to select the next token.
+    """
+
+    input_audio_format: AudioFormat = "pcm16"
+    """
+    Input Audio Format is the format of the input audio, which is given to the Model.
+    """
+
+    output_audio_format: AudioFormat = "pcm16"
+    """
+    Output Audio Format is the format of the audio, which is returned by the Model.
+    """
+
+    max_response_output_tokens: int | Literal["inf"] = 4096
+    """
+    Max Response Output Tokens is the maximum number of tokens in the response, defaults to 4096.
+    """
+
+    base_url: str = "wss://api.openai.com/v1/realtime"
+    """
+    Base URL is the URL of the RealTime API, defaults to the OpenAI RealTime API.
+    """
+
+    tool_choice: ToolChoice = "auto"
+    """
+    Tools are different other APIs which the Model can access, defaults to auto.
+    """
+
+    server_vad_opts: ServerVad = {
+        "type": "server_vad",
+        "threshold": 0.5,
+        "prefix_padding_ms": 1000,
+        "silence_duration_ms": 500,
+    }
+    """
+    Server VAD which means Voice Activity Detection is the configuration for the VAD, to detect the voice activity.
+    """
+
+    loop: Optional[asyncio.AbstractEventLoop] = None
+    """
+    Loop is the Event Loop to be used for the RealTimeModel, defaults to the current Event Loop.
+    """
+
+    class Config:
+        arbitrary_types_allowed = True
 
 
 class FunctionToolChoice(TypedDict):
@@ -61,7 +143,6 @@ ResponseStatus = Literal[
 ResponseStatus is used to specify the status of the response.
 """
 
-
 class TextContent(TypedDict):
     type: Literal["text"]
     text: str
@@ -84,10 +165,9 @@ class InputAudioContent(TypedDict):
 
 Content = Union[InputTextContent, TextContent, AudioContent, InputAudioContent]
 
-
 class ContentPart(TypedDict):
     type: Literal["text", "audio"]
-    audio: NotRequired[str]  # b64
+    audio: NotRequired[str]
     transcript: NotRequired[str]
 
 
@@ -628,3 +708,88 @@ ServerEventType = Literal[
     "response.function_call_arguments.done",
     "rate_limits.updated",
 ]
+
+EventTypes = Literal[
+    "start_session",
+    "input_speech_started",
+    "input_speech_stopped",
+    "input_speech_committed",
+    "input_speech_transcription_completed",
+    "input_speech_transcription_failed",
+    "response_created",
+    "response_output_added",
+    "response_content_added",
+    "response_content_done",
+    "response_output_done",
+    "response_done",
+    "function_calls_collected",
+    "function_calls_finished",
+    "metrics_collected",
+    "error",
+]
+
+
+# Realtime Mode Internal Model Types
+@dataclass
+class RealtimeResponse:
+    id: str
+    """id of the message"""
+    status: ResponseStatus
+    """status of the response"""
+    status_details: ResponseStatusDetails | None
+    """details of the status (only with "incomplete, cancelled and failed")"""
+    output: list[RealtimeOutput]
+    """list of outputs"""
+    usage: Usage | None
+    """usage of the response"""
+    done_fut: asyncio.Future[None]
+    """future that will be set when the response is completed"""
+    created_timestamp: float
+    """timestamp when the response was created"""
+    first_token_timestamp: float | None = None
+    """timestamp when the first token was received"""
+
+@dataclass
+class RealtimeOutput:
+    response_id: str
+    """id of the response"""
+    item_id: str
+    """id of the item"""
+    output_index: int
+    """index of the output"""
+    role: Role
+    """role of the message"""
+    type: Literal["message", "function_call"]
+    """type of the output"""
+    content: list[RealtimeContent]
+    """list of content"""
+    done_fut: asyncio.Future[None]
+    """future that will be set when the output is completed"""
+
+@dataclass
+class RealtimeToolCall:
+    name: str
+    """name of the function"""
+    arguments: str
+    """accumulated arguments"""
+    tool_call_id: str
+    """id of the tool call"""
+
+@dataclass
+class RealtimeContent:
+    response_id: str
+    """id of the response"""
+    item_id: str
+    """id of the item"""
+    output_index: int
+    """index of the output"""
+    content_index: int
+    """index of the content"""
+    text: str
+    """accumulated text content"""
+    audio: list[av.AudioFrame]
+    """accumulated audio content"""
+    tool_calls: list[RealtimeToolCall]
+    """pending tool calls"""
+    content_type: Modality
+    """type of the content"""

@@ -1,12 +1,10 @@
 import asyncio
 import json
-import logging
 from typing import Any, Dict, Optional
 
 import websockets
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from ai01.utils import logger
 
 
 class SocketClient:
@@ -55,12 +53,8 @@ class SocketClient:
         """
         Connect to the WebSocket server.
         """
-        try:
-            self._logger.info(f"Attempting to connect to WebSocket at {self.url}")
-            
-            self.__ws = await websockets.connect(self.url, extra_headers=self.headers)
-            
-            self._logger.info("WebSocket connection established")
+        try:            
+            self.__ws = await websockets.connect(self.url, extra_headers=self.headers)            
         except Exception as e:
             self._logger.error(f"Error connecting to WebSocket: {e}")
             raise
@@ -76,6 +70,8 @@ class SocketClient:
             dump_data = json.dumps(message) if self.json else message
 
             await self.__ws.send(dump_data)
+
+            return
 
         except Exception as e:
             self._logger.error(f"Error sending message: {e}")

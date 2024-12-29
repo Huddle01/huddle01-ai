@@ -4,8 +4,9 @@ from huddle01.room import RoomEvents, RoomEventsData
 
 from .audio_resampler import AudioFrame, AudioResampler
 from .rtc import RTC, HuddleClientOptions, RTCOptions
+from .utils import convert_to_audio_frame, get_frame_size
 
-__all__ = ["RTC", "RTCOptions", "AudioResampler", "AudioFrame", "HuddleClientOptions", "Role", "RoomEvents", "RoomEventsData", "ProduceOptions"]
+__all__ = ["RTC", "RTCOptions", "AudioResampler", "AudioFrame", "HuddleClientOptions", "Role", "RoomEvents", "RoomEventsData", "ProduceOptions", "convert_to_audio_frame", "get_frame_size"]
 
 
 # Cleanup docs of unexported modules
