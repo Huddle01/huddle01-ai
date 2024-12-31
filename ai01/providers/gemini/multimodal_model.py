@@ -2,8 +2,10 @@ import asyncio
 import logging
 import uuid
 
+import websockets
 from google import genai
 from google.genai import types
+from google.genai.live import AsyncSession
 from pydantic.v1.main import BaseModel
 
 from ai01.agent.agent import Agent
@@ -56,7 +58,9 @@ class MultiModalModel(EnhancedEventEmitter):
 
         self.conversation: Conversation = Conversation(id=str(uuid.uuid4()))
 
-        self.session = None
+        self.session: AsyncSession | None = None
+
+        self.tasks = []
 
     def __str__(self):
         return f"Gemini MultiModal: {self._options.model}"
@@ -68,19 +72,27 @@ class MultiModalModel(EnhancedEventEmitter):
         if self.session is None:
             raise Exception("Session is not connected")
 
-        await self.session.send({"data": audio_bytes, "mime_type": "audio/pcm"})
+        try:
+            await self.session.send({"data": audio_bytes, "mime_type": "audio/pcm"})
+        except websockets.exceptions.ConnectionClosed:
+            self._logger.warning("WebSocket connection closed while sending audio.")
+            self.session = None
 
     async def handle_response(self):
-        while True:
-            turn = await self.session.receive()
-            async for response in turn:
-                if response.data:
-                    self.agent.audio_track.enqueue_audio(response.data)
-
-                elif response.text:
-                    print(response.text, end="", flush=True)
-                elif response.image:
-                    print(response.image, end="", flush=True)
+        try:
+            if self.session is None or self.agent.audio_track is None:
+                raise Exception("Session or AudioTrack is not connected")
+            while True:
+                async for response in self.session.receive():
+                    if response.data:
+                        self.agent.audio_track.enqueue_audio(response.data)
+                    elif response.text:
+                        print(response.text, end="", flush=True)
+        except websockets.exceptions.ConnectionClosedOK:
+            self._logger.info("WebSocket connection closed normally.")
+        except Exception as e:
+            self._logger.error(f"Error in handle_response: {e}")
+            raise e
 
     async def fetch_audio_from_rtc(self):
         while True:
@@ -96,19 +108,22 @@ class MultiModalModel(EnhancedEventEmitter):
 
             await self.send_audio(audio_chunk)
 
-    async def connect(self):
-        try:
-            async with (
-                self.client.aio.live.connect(
+    async def run(self):
+        while True:
+            try:
+                async with self.client.aio.live.connect(
                     model=self._options.model, config=self._options.config
-                ) as session,
-                asyncio.TaskGroup() as tg,
-            ):
-                self.session = session
+                ) as session:
+                    self.session = session
 
-                tg.create_task(self.handle_response())
-                tg.create_task(self.fetch_audio_from_rtc())
+                    handle_response_task = asyncio.create_task(self.handle_response())
+                    fetch_audio_task = asyncio.create_task(self.fetch_audio_from_rtc())
 
-        except Exception as e:
-            self._logger.error(f"Error in connecting to the Gemini Model: {e}")
-            raise e
+                    self.tasks.extend([handle_response_task, fetch_audio_task])
+                    await asyncio.gather(*self.tasks)
+            except Exception as e:
+                self._logger.error(f"Error in connecting to the Gemini Model: {e}")
+                await asyncio.sleep(5)  # Wait before attempting to reconnect
+
+    async def connect(self):
+        self.loop.create_task(self.run())
