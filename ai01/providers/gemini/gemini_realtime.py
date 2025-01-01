@@ -9,6 +9,7 @@ from google.genai import types
 from google.genai.live import AsyncSession
 from pydantic.v1.main import BaseModel
 
+from ai01.agent._models import AgentsEvents
 from ai01.agent.agent import Agent
 from ai01.providers.gemini.conversation import Conversation
 
@@ -125,6 +126,12 @@ class GeminiRealtime(EnhancedEventEmitter):
                         self.agent.audio_track.enqueue_audio(response.data)
                     elif response.text:
                         print(response.text, end="", flush=True)
+                    elif response.tool_call:
+                        print("tool call recieved", response.tool_call)
+                        self.agent.emit(
+                            AgentsEvents.ToolCall, self.session.send, response.tool_call
+                        )
+
         except websockets.exceptions.ConnectionClosedOK:
             self._logger.info("WebSocket connection closed normally.")
         except Exception as e:

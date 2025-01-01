@@ -1,8 +1,10 @@
 import asyncio
 import logging
 import os
+from typing import Callable
 
 from dotenv import load_dotenv
+from google.genai import types
 
 from ai01.agent import Agent, AgentOptions, AgentsEvents
 from ai01.providers.gemini.gemini_realtime import (
@@ -20,8 +22,11 @@ from ai01.rtc import (
     RTCOptions,
 )
 from example.gemini.functions.storeAddress import (
+    add_complaint,
     add_complaint_tool,
+    check_for_complaint,
     check_for_complaint_tool,
+    get_complaint_details,
     get_complaint_details_tool,
 )
 
@@ -154,6 +159,65 @@ async def main():
         @agent.on(AgentsEvents.Thinking)
         def on_agent_thinking():
             logger.info("Agent Thinking")
+
+        @agent.on(AgentsEvents.ToolCall)
+        async def on_tool_call(callback: Callable, tool_call: types.LiveServerToolCall):
+            logger.info(f"Tool Call: {tool_call}")
+            function_responses = []
+
+            if tool_call.function_calls:
+                for function_call in tool_call.function_calls:
+                    name = function_call.name
+                    args = function_call.args
+                    # Extract the numeric part from Gemini's function call ID
+                    call_id = function_call.id
+                    if name == "check_for_complaint":
+                        if not args:
+                            print("Missing required parameter 'name'")
+                            continue
+                        argname = args["name"]
+                        boolean = check_for_complaint(argname)
+                        function_responses.append(
+                            {
+                                "name": "check_for_complaint",
+                                "response": {"exists": boolean},
+                                "id": call_id,
+                            }
+                        )
+                    elif name == "add_complaint":
+                        if not args:
+                            print("Missing required parameters 'name' and 'address'")
+                            continue
+                        argname = args["name"]
+                        argaddress = args["address"]
+
+                        add_complaint(argname, argaddress)
+                        response = f"Stored the address of {argname} as {argaddress}"
+                        function_responses.append(
+                            {
+                                "name": "add_complaint",
+                                "response": {"response": response},
+                                "id": call_id,
+                            }
+                        )
+                    elif name == "get_complaint_details":
+                        if not args:
+                            print("Missing required parameter 'name'")
+                            continue
+                        argname = args["name"]
+                        address = get_complaint_details(argname)
+
+                        function_responses.append(
+                            {
+                                "name": "get_complaint_details",
+                                "response": {"name": argname, "address": address},
+                                "id": call_id,
+                            }
+                        )
+                    else:
+                        print(f"Unknown function name: {function_call.name}")
+
+            await callback(function_responses)
 
         # Connect to the LLM to the Room
         await llm.connect()
