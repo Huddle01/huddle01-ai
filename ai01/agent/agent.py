@@ -32,8 +32,9 @@ class AgentOptions(BaseModel):
         arbitrary_types_allowed = True
 
 
-
 logger = logging.getLogger("Agent")
+
+
 class Agent(EnhancedEventEmitter):
     """
     Agents is defined as the higher level user which is its own entity and has exposed APIs to

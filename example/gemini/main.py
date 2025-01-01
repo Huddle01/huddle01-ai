@@ -5,9 +5,10 @@ import os
 from dotenv import load_dotenv
 
 from ai01.agent import Agent, AgentOptions, AgentsEvents
-from ai01.providers.gemini.multimodal_model import (
-    MultiModalModel,
-    MultiModalModelOptions,
+from ai01.providers.gemini.gemini_realtime import (
+    GeminiConfig,
+    GeminiOptions,
+    GeminiRealtime,
 )
 from ai01.providers.openai import AudioTrack
 from ai01.rtc import (
@@ -17,6 +18,11 @@ from ai01.rtc import (
     RoomEvents,
     RoomEventsData,
     RTCOptions,
+)
+from example.gemini.functions.storeAddress import (
+    add_complaint_tool,
+    check_for_complaint_tool,
+    get_complaint_details_tool,
 )
 
 load_dotenv()
@@ -58,8 +64,21 @@ async def main():
         )
 
         # RealTimeModel is the Model which is going to be used by the Agent
-        llm = MultiModalModel(
-            agent=agent, options=MultiModalModelOptions(gemini_api_key=gemini_api_key)
+        llm = GeminiRealtime(
+            agent=agent,
+            options=GeminiOptions(
+                gemini_api_key=gemini_api_key,
+                system_instruction="You are a Customer Representative named Om,\
+                Check for complaints and help store the names and addresses of customers,\
+                who want to register a complaint, and help check if a complaint already exists.",
+                config=GeminiConfig(
+                    function_declaration=[
+                        add_complaint_tool,
+                        check_for_complaint_tool,
+                        get_complaint_details_tool,
+                    ],
+                ),
+            ),
         )
 
         # Join the dRTC Network, which creates a Room instance for the Agent to Join.

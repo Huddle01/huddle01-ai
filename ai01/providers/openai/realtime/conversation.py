@@ -9,6 +9,7 @@ from . import _exceptions
 
 logger = logging.getLogger(__name__)
 
+
 class Conversation:
     def __init__(self, id: str):
         self.id = id
@@ -38,18 +39,18 @@ class Conversation:
 
     def __str__(self):
         return f"Conversation ID: {self.id}"
-    
+
     def __repr__(self):
         return f"Conversation ID: {self.id}"
-    
+
     @property
     def logger(self):
         return self._logger
-    
+
     @property
     def active(self):
         return self._active
-    
+
     def add_track(self, id: str, track: MediaStreamTrack):
         """
         Add a Track to the Conversation, which streamlines conversation into one Audio Stream.
@@ -57,7 +58,7 @@ class Conversation:
         """
         if track.kind != "audio":
             raise _exceptions.RealtimeModelTrackInvalidError()
-        
+
         if self._track_fut.get(id):
             raise _exceptions.RealtimeModelError("Track is already started.")
 
@@ -65,17 +66,19 @@ class Conversation:
             try:
                 while self._active and track.readyState != "ended":
                     frame = await track.recv()
-                    
+
                     frame.pts = None
 
                     if frame is None:
                         continue
-                    
+
                     self.audio_resampler.resample(frame)
             except Exception as e:
                 self.logger.error(f"Error in handling audio frame: {e}")
 
-        self._started_fut = asyncio.create_task(handle_audio_frame(), name=f"Conversation-{id}")
+        self._started_fut = asyncio.create_task(
+            handle_audio_frame(), name=f"Conversation-{id}"
+        )
 
         self._track_fut[id] = self._started_fut
 

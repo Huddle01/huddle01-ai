@@ -23,9 +23,7 @@ client = genai.Client(
     http_options={"api_version": "v1alpha"},
 )
 
-config = types.LiveConnectConfig(
-    response_modalities=["TEXT","AUDIO"]
-    )
+config = types.LiveConnectConfig(response_modalities=["TEXT", "AUDIO"])
 
 
 class AudioLoop:

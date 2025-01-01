@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import uuid
+from typing import List, Optional
 
 import websockets
 from google import genai
@@ -17,9 +18,20 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-class MultiModalModelOptions(BaseModel):
+class GeminiConfig(BaseModel):
+    function_declaration: Optional[List] = None
+    retrieval: Optional[types.Retrieval] = None
+    code_execution: Optional[types.ToolCodeExecution] = None
+    google_search: Optional[types.GoogleSearch] = None
+    google_search_retrieval: Optional[types.GoogleSearchRetrieval] = None
+
+    class Config:
+        arbitrary_types_allowed = True
+
+
+class GeminiOptions(BaseModel):
     """
-    MultiModalModelOptions is the configuration for the MultiModalModel
+    realtimeModelOptions is the configuration for the realtimeModel
     """
 
     gemini_api_key: str
@@ -29,10 +41,14 @@ class MultiModalModelOptions(BaseModel):
 
     model = "gemini-2.0-flash-exp"
     """
-    Model is the Model which is going to be used by the MultiModalModel
+    Model is the Model which is going to be used by the realtimeModel
     """
 
-    config = types.LiveConnectConfig(response_modalities=["AUDIO"])
+    system_instruction: Optional[str] = (
+        "You are a Helpul Voice Assistant. You can help me with my queries."
+    )
+
+    config: GeminiConfig
 
     """
     Config is the Config which the Model is going to use for the conversation
@@ -42,10 +58,31 @@ class MultiModalModelOptions(BaseModel):
         arbitrary_types_allowed = True
 
 
-class MultiModalModel(EnhancedEventEmitter):
-    def __init__(self, agent: Agent, options: MultiModalModelOptions):
+class GeminiRealtime(EnhancedEventEmitter):
+    def __init__(self, agent: Agent, options: GeminiOptions):
         self.agent = agent
         self._options = options
+
+        self.config = types.LiveConnectConfig(
+            response_modalities=["AUDIO"],
+            system_instruction=types.Content(
+                parts=[
+                    types.Part(
+                        text=options.system_instruction,
+                    )
+                ]
+            ),
+            tools=[
+                types.Tool(
+                    # ignore the below error
+                    function_declarations=options.config.function_declaration,
+                    google_search=options.config.google_search,
+                    google_search_retrieval=options.config.google_search_retrieval,
+                    code_execution=options.config.code_execution,
+                    retrieval=options.config.retrieval,
+                )
+            ],
+        )
 
         self.client = genai.Client(
             api_key=self._options.gemini_api_key,
@@ -54,7 +91,7 @@ class MultiModalModel(EnhancedEventEmitter):
 
         self.loop = asyncio.get_event_loop()
 
-        self._logger = logger.getChild(f"MultiModalModel-{self._options.model}")
+        self._logger = logger.getChild(f"realtimeModel-{self._options.model}")
 
         self.conversation: Conversation = Conversation(id=str(uuid.uuid4()))
 
@@ -63,10 +100,10 @@ class MultiModalModel(EnhancedEventEmitter):
         self.tasks = []
 
     def __str__(self):
-        return f"Gemini MultiModal: {self._options.model}"
+        return f"Gemini realtime: {self._options.model}"
 
     def __repr__(self):
-        return f"Gemini MultiModal: {self._options.model}"
+        return f"Gemini realtime: {self._options.model}"
 
     async def send_audio(self, audio_bytes: bytes):
         if self.session is None:
@@ -112,7 +149,7 @@ class MultiModalModel(EnhancedEventEmitter):
         while True:
             try:
                 async with self.client.aio.live.connect(
-                    model=self._options.model, config=self._options.config
+                    model=self._options.model, config=self.config
                 ) as session:
                     self.session = session
 
