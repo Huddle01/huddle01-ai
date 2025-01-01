@@ -1,5 +1,4 @@
 import asyncio
-import base64
 import fractions
 import logging
 import threading
@@ -57,13 +56,12 @@ class AudioTrack(MediaStreamTrack):
     def __repr__(self) -> str:
         return f"<AudioTrack kind={self.kind} state={self.readyState}> sample_rate={self.sample_rate} channels={self.channels} sample_width={self.sample_width}>"
 
-    def enqueue_audio(self, base64_audio: str):
+    def enqueue_audio(self, audio_bytes: bytes):
         """Process and add audio data directly to the AudioFifo"""
         if self.readyState != "live":
             return
 
         try:
-            audio_bytes = base64.b64decode(base64_audio)
             audio_array = np.frombuffer(audio_bytes, dtype=np.int16)
             audio_array = audio_array.reshape(self.channels, -1)
 

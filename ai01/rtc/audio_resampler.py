@@ -10,7 +10,10 @@ class AudioResampler:
     Audio Resampler is used to resample the audio to the desired format, and store it in the Audio FIFO Buffer.
     Using the `resample` method, you can resample the audio frame to the desired format, and using the `recv` method, you can get the resampled audio frame.
     """
-    def __init__(self, format: Literal['s16'], layout: Literal['mono', 'stereo'], rate: int):
+
+    def __init__(
+        self, format: Literal["s16"], layout: Literal["mono", "stereo"], rate: int
+    ):
         self.audio_fifo = AudioFifo()
         """
         Audio FIFO Buffer for the Audio Resampler.
@@ -24,7 +27,6 @@ class AudioResampler:
         """
         For the Audio Resampling, which is used to resample the audio to the desired format.
         """
-
 
     def resample(self, audio_frame: AudioFrame):
         """
@@ -50,7 +52,6 @@ class AudioResampler:
         pcm_bytes = pcm_data.tobytes()
 
         return pcm_bytes
-    
 
     def clear(self):
         """

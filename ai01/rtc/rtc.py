@@ -31,7 +31,7 @@ class RTCOptions(BaseModel):
     """
     API Key is the Huddle01 API Key.
     """
-    
+
     room_id: str
     """
     Room ID is the unique identifier of the Room.
@@ -86,15 +86,17 @@ class RTC:
     @property
     def room(self):
         return self._huddle_client.room
-    
-    async def produce(self, options:ProduceOptions):
+
+    async def produce(self, options: ProduceOptions):
         """
         Produces Media Stream Tracks to the Room.
         """
         local_peer = self.huddle_client.local_peer
 
         if not local_peer:
-            raise ValueError("Local Peer is not created, make sure to connect to the Room before producing.")
+            raise ValueError(
+                "Local Peer is not created, make sure to connect to the Room before producing."
+            )
 
         await local_peer.produce(options=options)
 

@@ -4,8 +4,7 @@ from typing import Dict
 
 from aiortc.mediastreams import MediaStreamTrack
 
-from ....rtc.audio_resampler import AudioResampler
-from . import _exceptions
+from ...rtc.audio_resampler import AudioResampler
 
 logger = logging.getLogger(__name__)
 
@@ -57,10 +56,10 @@ class Conversation:
         which can be later retrieved using the `recv_frame` method and feeded to the Model.
         """
         if track.kind != "audio":
-            raise _exceptions.RealtimeModelTrackInvalidError()
+            raise Exception("Track is not an Audio Track.")
 
         if self._track_fut.get(id):
-            raise _exceptions.RealtimeModelError("Track is already started.")
+            raise Exception("Track already exists.")
 
         async def handle_audio_frame():
             try:

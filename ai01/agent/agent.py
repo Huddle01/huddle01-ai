@@ -3,8 +3,8 @@ from typing import Optional
 
 from pydantic import BaseModel
 
-from ..providers.openai.audio_track import AudioTrack
 from ..rtc import RTC, RTCOptions
+from ..rtc.audio_track import AudioTrack
 from ..utils.emitter import EnhancedEventEmitter
 from ._exceptions import RoomNotConnectedError, RoomNotCreatedError
 
@@ -32,8 +32,9 @@ class AgentOptions(BaseModel):
         arbitrary_types_allowed = True
 
 
-
 logger = logging.getLogger("Agent")
+
+
 class Agent(EnhancedEventEmitter):
     """
     Agents is defined as the higher level user which is its own entity and has exposed APIs to
@@ -46,7 +47,7 @@ class Agent(EnhancedEventEmitter):
 
     def __init__(self, options: AgentOptions):
         super(Agent, self).__init__()
-        
+
         # Options is the configuration for the Agent.
         self.options = options
 
@@ -62,7 +63,7 @@ class Agent(EnhancedEventEmitter):
     @property
     def rtc(self):
         return self.__rtc
-    
+
     @property
     def logger(self):
         return self._logger

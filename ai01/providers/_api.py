@@ -4,6 +4,7 @@ from typing import TypedDict
 class EventType(str):
     pass
 
+
 class Events:
     class Connected(TypedDict):
         peer_id: str

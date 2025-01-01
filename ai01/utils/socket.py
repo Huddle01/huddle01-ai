@@ -57,9 +57,9 @@ class SocketClient:
         """
         try:
             self._logger.info(f"Attempting to connect to WebSocket at {self.url}")
-            
+
             self.__ws = await websockets.connect(self.url, extra_headers=self.headers)
-            
+
             self._logger.info("WebSocket connection established")
         except Exception as e:
             self._logger.error(f"Error connecting to WebSocket: {e}")
