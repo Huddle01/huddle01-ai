@@ -1,4 +1,4 @@
-from .audio_track import AudioTrack
+from ...rtc.audio_track import AudioTrack
 
 __all__ = ["AudioTrack"]
 

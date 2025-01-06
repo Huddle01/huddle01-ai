@@ -124,14 +124,14 @@ class RealTimeModel(EnhancedEventEmitter):
         self._logger = logger.getChild(f"RealTimeModel-{self._opts.model}")
 
         # Conversation is the Conversations which being are happening with the RealTimeModel.
-        self._conversation: Conversation = Conversation(id = str(uuid.uuid4()))
+        self._conversation: Conversation = Conversation(id=str(uuid.uuid4()))
 
         # Main Task is the Audio Append the RealTimeModel.
         self._main_tsk: Optional[asyncio.Future] = None
 
     def __str__(self):
         return f"RealTimeModel: {self._opts.model}"
-    
+
     def __repr__(self):
         return f"RealTimeModel: {self._opts.model}"
 
@@ -156,15 +156,17 @@ class RealTimeModel(EnhancedEventEmitter):
 
             self._logger.info("Connected to OpenAI RealTime Model")
 
-            self._main_tsk = asyncio.create_task(self._main(), name="RealTimeModel-Main")
+            self._main_tsk = asyncio.create_task(
+                self._main(), name="RealTimeModel-Main"
+            )
 
         except _exceptions.RealtimeModelNotConnectedError:
-            raise 
+            raise
 
         except Exception as e:
             self._logger.error(f"Error connecting to RealTime API: {e}")
             raise _exceptions.RealtimeModelSocketError()
-    
+
     async def _session_create(self):
         """
         Session Updated is the Event Handler for the Session Update Event.
@@ -208,7 +210,7 @@ class RealTimeModel(EnhancedEventEmitter):
         """
         if not self.socket.connected:
             raise _exceptions.RealtimeModelNotConnectedError()
-        
+
         pcm_base64 = base64.b64encode(audio_byte).decode("utf-8")
 
         payload: _api.ClientEvent.InputAudioBufferAppend = {
@@ -233,7 +235,6 @@ class RealTimeModel(EnhancedEventEmitter):
             logger.error(f"Error listening to WebSocket: {e}")
 
             raise _exceptions.RealtimeModelSocketError()
-        
 
     async def _handle_message(self, message: Union[str, bytes]):
         data = json.loads(message)
@@ -289,7 +290,6 @@ class RealTimeModel(EnhancedEventEmitter):
         # elif event == "response.done":
         #     self._handle_response_done(data)
 
-        
         self._logger.info(f"Unhandled Event: {event}")
 
     def _handle_response_output_item_done(self, data: dict):
@@ -327,7 +327,7 @@ class RealTimeModel(EnhancedEventEmitter):
         Session Created is the Event Handler for the Session Created Event.
         """
         self._logger.info("Session Created")
-    
+
     def _handle_error(self, data: dict):
         """
         Error is the Event Handler for the Error Event.
@@ -403,7 +403,8 @@ class RealTimeModel(EnhancedEventEmitter):
 
         if base64_audio and self.agent.audio_track:
             self.agent.emit(AgentsEvents.Speaking)
-            self.agent.audio_track.enqueue_audio(base64_audio=base64_audio)
+            audio_bytes = base64.b64decode(base64_audio)
+            self.agent.audio_track.enqueue_audio(audio_bytes=audio_bytes)
 
     def _handle_response_audio_transcript_delta(self, data: dict):
         """
@@ -432,8 +433,9 @@ class RealTimeModel(EnhancedEventEmitter):
     async def _main(self):
         if not self.socket.connected:
             raise _exceptions.RealtimeModelNotConnectedError()
-        
+
         try:
+
             async def handle_audio_chunk():
                 while True:
                     if not self.conversation.active:
@@ -448,7 +450,8 @@ class RealTimeModel(EnhancedEventEmitter):
 
                     await self._send_audio_append(audio_chunk)
 
-            self._main_tsk = asyncio.create_task(handle_audio_chunk(), name="RealTimeModel-AudioAppend")
+            self._main_tsk = asyncio.create_task(
+                handle_audio_chunk(), name="RealTimeModel-AudioAppend"
+            )
         except Exception as e:
             self._logger.error(f"Error in Main Loop: {e}")
-        

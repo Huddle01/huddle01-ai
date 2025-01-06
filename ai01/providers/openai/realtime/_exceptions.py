@@ -40,6 +40,7 @@ class RealtimeModelSocketError(RealtimeModelError):
             """
         )
 
+
 class RealtimeModelTrackInvalidError(RealtimeModelError):
     """Exception raised for errors in the Realtime Model, when Track is invalid"""
 
