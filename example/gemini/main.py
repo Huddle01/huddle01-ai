@@ -55,7 +55,7 @@ async def main():
         rtcOptions = RTCOptions(
             api_key=huddle_api_key,
             project_id=huddle_project_id,
-            room_id="DAAO",
+            room_id="vne-yicp-jyj",
             role=Role.HOST,
             metadata={"displayName": "Agent"},
             huddle_client_options=HuddleClientOptions(
@@ -73,9 +73,10 @@ async def main():
             agent=agent,
             options=GeminiOptions(
                 gemini_api_key=gemini_api_key,
-                system_instruction="You are a Customer Representative named Om,\
-                Check for complaints and help store the names and addresses of customers,\
-                who want to register a complaint, and help check if a complaint already exists.",
+                system_instruction="You are a Customer Representative named Brad who works for a Chat App,\
+                Check for complaints and help store the names and complaints of customers regarding this chat app,\
+                who want to register a complaint, and help check if a complaint already exists.\
+                Greet the customer when you hear him",
                 config=GeminiConfig(
                     function_declaration=[
                         add_complaint_tool,
@@ -186,13 +187,15 @@ async def main():
                         )
                     elif name == "add_complaint":
                         if not args:
-                            print("Missing required parameters 'name' and 'address'")
+                            print("Missing required parameters 'name' and 'complaint'")
                             continue
                         argname = args["name"]
-                        argaddress = args["address"]
+                        argcomplaint = args["complaint"]
 
-                        add_complaint(argname, argaddress)
-                        response = f"Stored the address of {argname} as {argaddress}"
+                        add_complaint(argname, argcomplaint)
+                        response = (
+                            f"Stored the complaint of {argname} as {argcomplaint}"
+                        )
                         function_responses.append(
                             {
                                 "name": "add_complaint",
@@ -205,12 +208,23 @@ async def main():
                             print("Missing required parameter 'name'")
                             continue
                         argname = args["name"]
-                        address = get_complaint_details(argname)
+
+                        response = {
+                            "error": "Name not found in the complaint book",
+                        }
+
+                        details = get_complaint_details(argname)
+
+                        if details is not None:
+                            response = {
+                                "complaint": details.get("complaint"),
+                                "resolution_period": details.get("resolution_period"),
+                            }
 
                         function_responses.append(
                             {
                                 "name": "get_complaint_details",
-                                "response": {"name": argname, "address": address},
+                                "response": response,
                                 "id": call_id,
                             }
                         )
