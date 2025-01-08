@@ -3,7 +3,7 @@ import base64
 import json
 import logging
 import uuid
-from typing import Literal, Optional, Union
+from typing import List, Literal, Optional, Union
 
 from pydantic import BaseModel
 
@@ -77,6 +77,8 @@ class RealTimeModelOptions(BaseModel):
     """
     Tools are different other APIs which the Model can access, defaults to auto.
     """
+
+    function_declaration: List = []
 
     server_vad_opts: _api.ServerVad = {
         "type": "server_vad",
@@ -187,7 +189,7 @@ class RealTimeModel(EnhancedEventEmitter):
                 "max_response_output_tokens": self._opts.max_response_output_tokens,
                 "modalities": opts.modalities,
                 "temperature": opts.temperature,
-                "tools": [],
+                "tools": opts.function_declaration,
                 "turn_detection": opts.server_vad_opts,
                 "output_audio_format": opts.output_audio_format,
                 "tool_choice": opts.tool_choice,
@@ -277,6 +279,8 @@ class RealTimeModel(EnhancedEventEmitter):
         #     self._handle_response_content_part_added(data)
         elif event == "response.audio.delta":
             self._handle_response_audio_delta(data)
+        elif event == "response.function_call_arguments.done":
+            self._handle_response_function_call_arguments_done(data)
         # elif event == "response.audio.done":
         #     self._handle_response_audio_done(data)
         # elif event == "response.text.done":
@@ -405,6 +409,30 @@ class RealTimeModel(EnhancedEventEmitter):
             self.agent.emit(AgentsEvents.Speaking)
             audio_bytes = base64.b64decode(base64_audio)
             self.agent.audio_track.enqueue_audio(audio_bytes=audio_bytes)
+
+    def _handle_response_function_call_arguments_done(
+        self, data: _api.ServerEvent.ResponseFunctionCallArgumentsDone
+    ):
+        """
+        Response Function Call Arguments Done is the Event Handler for the Response Function Call Arguments Done Event.
+        """
+        self._logger.info("Response Function Call Arguments Done")
+
+        call_id = data.get("call_id")
+
+        async def callback(result):
+            await self.socket.send(
+                {
+                    "type": "conversation.item.create",
+                    "item": {
+                        "type": "function_call_output",
+                        "output": result,
+                        "call_id": call_id,
+                    },
+                }
+            )
+
+        self.agent.emit(AgentsEvents.ToolCall, callback, data)
 
     def _handle_response_audio_transcript_delta(self, data: dict):
         """

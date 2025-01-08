@@ -1,12 +1,18 @@
 import asyncio
+import json
 import logging
 import os
+from typing import Callable
 
 from dotenv import load_dotenv
 
 from ai01.agent import Agent, AgentOptions, AgentsEvents
 from ai01.providers.openai import AudioTrack
-from ai01.providers.openai.realtime import RealTimeModel, RealTimeModelOptions
+from ai01.providers.openai.realtime import (
+    RealTimeModel,
+    RealTimeModelOptions,
+    ServerEvent,
+)
 from ai01.rtc import (
     HuddleClientOptions,
     ProduceOptions,
@@ -14,6 +20,14 @@ from ai01.rtc import (
     RoomEvents,
     RoomEventsData,
     RTCOptions,
+)
+from example.chatbot.functions.storeAddress import (
+    add_complaint,
+    add_complaint_tool,
+    check_for_complaint,
+    check_for_complaint_tool,
+    get_complaint_details,
+    get_complaint_details_tool,
 )
 
 from .prompt import bot_prompt
@@ -62,6 +76,11 @@ async def main():
             options=RealTimeModelOptions(
                 oai_api_key=openai_api_key,
                 instructions=bot_prompt,
+                function_declaration=[
+                    add_complaint_tool,
+                    check_for_complaint_tool,
+                    get_complaint_details_tool,
+                ],
             ),
         )
 
@@ -138,6 +157,50 @@ async def main():
         @agent.on(AgentsEvents.Thinking)
         def on_agent_thinking():
             logger.info("Agent Thinking")
+
+        @agent.on(AgentsEvents.ToolCall)
+        async def on_tool_call(
+            callback: Callable, tool_call: ServerEvent.ResponseFunctionCallArgumentsDone
+        ):
+            logger.info(f"Tool Call: {tool_call}")
+            function_response = {}
+
+            name = tool_call.get("type")
+            args = json.loads(tool_call.get("arguments"))
+            if name == "check_for_complaint":
+                if not args:
+                    print("Missing required parameter 'name'")
+                argname = args["name"]
+                boolean = check_for_complaint(argname)
+                function_response = {
+                    "response": {"exists": boolean},
+                }
+
+            elif name == "add_complaint":
+                if not args:
+                    print("Missing required parameters 'name' and 'address'")
+                argname = args["name"]
+                argaddress = args["address"]
+
+                add_complaint(argname, argaddress)
+                response = f"Stored the address of {argname} as {argaddress}"
+                function_response = {
+                    "response": response,
+                }
+            elif name == "get_complaint_details":
+                if not args:
+                    print("Missing required parameter 'name'")
+                argname = args["name"]
+                address = get_complaint_details(argname)
+
+                function_response = {
+                    "name": argname,
+                    "address": address,
+                }
+            else:
+                print(f"Unknown function name: {tool_call.get('name')}")
+
+            await callback(function_response)
 
         # Connect to the LLM to the Room
         await llm.connect()

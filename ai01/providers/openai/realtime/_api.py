@@ -527,7 +527,9 @@ class ServerEvent:
         event_id: str
         type: Literal["response.function_call_arguments.done"]
         response_id: str
+        name: str
         output_index: int
+        call_id: str
         arguments: str
 
     class RateLimitsData(TypedDict):
