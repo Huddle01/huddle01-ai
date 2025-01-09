@@ -1,55 +1,44 @@
 import random
-from typing import Dict, TypedDict
+from typing import Dict, Optional, TypedDict
 
 
 class ComplaintType(TypedDict):
+    name: str
     complaint: str
     resolution_period: str
 
 
-complaint_book: dict[str, ComplaintType] = {
-    "Chad": {
+complaint_book: Dict[int, ComplaintType] = {
+    1234: {
+        "name": "Chad",
         "complaint": "chat in the app is not working",
         "resolution_period": "3 hours",
     },
-    "Brad": {"complaint": "I am not able to login", "resolution_period": "2 days"},
-}
-
-
-def check_for_complaint(name: str) -> bool:
-    """Check if the name is already stored in the complaint book.
-
-    Args:
-        name: Name of the person.
-
-    Returns:
-        True if the name is already stored, False otherwise.
-    """
-    return name in complaint_book
-
-
-check_for_complaint_tool: Dict = {
-    "name": "check_for_complaint",
-    "description": "Checks if the name is already stored in the complaint book.",
-    "parameters": {
-        "type": "OBJECT",
-        "properties": {
-            "name": {
-                "type": "STRING",
-                "description": "Name of the person to check in the complaint book.",
-            }
-        },
-        "required": ["name"],
+    5678: {
+        "name": "Brad",
+        "complaint": "I am not able to login",
+        "resolution_period": "2 days",
     },
 }
 
 
-def add_complaint(name: str, complaint: str) -> None:
+def generate_complaint_id() -> int:
+    """Generate a unique 4-digit complaint ID."""
+    while True:
+        complaint_id = random.randint(1000, 9999)
+        if complaint_id not in complaint_book:
+            return complaint_id
+
+
+def add_complaint(name: str, complaint: str) -> int:
     """Store the name and complaint of a person in the complaint book.
 
     Args:
         name: Name of the person.
         complaint: Complaint of the person.
+
+    Returns:
+        The generated complaint ID.
     """
     # Generate a random resolution period for the complaint in days or hours
     if random.choice([True, False]):
@@ -57,13 +46,14 @@ def add_complaint(name: str, complaint: str) -> None:
     else:
         resolution_period = f"{random.randint(1, 24)} hours"
 
-    complaint_book[name] = ComplaintType(
-        complaint=complaint, resolution_period=resolution_period
+    complaint_id = generate_complaint_id()
+    complaint_book[complaint_id] = ComplaintType(
+        name=name, complaint=complaint, resolution_period=resolution_period
     )
     print(
-        f"Stored the complaint of {name} as '{complaint}' with a resolution period of {resolution_period}"
+        f"Stored the complaint of {name} as '{complaint}' with a resolution period of {resolution_period} and complaint ID {complaint_id}"
     )
-    return None
+    return complaint_id
 
 
 add_complaint_tool: Dict = {
@@ -83,19 +73,16 @@ add_complaint_tool: Dict = {
 }
 
 
-def get_complaint_details(name: str) -> ComplaintType | None:
+def get_complaint_details(complaint_id: int) -> Optional[ComplaintType]:
     """Get the complaint and resolution period of the complaint of a person from the complaint book.
 
     Args:
-        name: Name of the person.
+        complaint_id: Complaint ID of the person.
 
     Returns:
-        The complaint and resolution period of the complaint, or an error message if the name is not found.
+        The complaint and resolution period of the complaint, or None if the complaint ID is not found.
     """
-    if check_for_complaint(name):
-        return complaint_book[name]
-    else:
-        return None
+    return complaint_book.get(complaint_id)
 
 
 get_complaint_details_tool: Dict = {
@@ -104,11 +91,11 @@ get_complaint_details_tool: Dict = {
     "parameters": {
         "type": "OBJECT",
         "properties": {
-            "name": {
-                "type": "STRING",
-                "description": "Name of the person whose complaint is to be retrieved.",
+            "complaint_id": {
+                "type": "INTEGER",
+                "description": "Complaint ID of the person whose complaint is to be retrieved.",
             },
         },
-        "required": ["name"],
+        "required": ["complaint_id"],
     },
 }

@@ -24,8 +24,6 @@ from ai01.rtc import (
 from example.chatbot.functions.storeAddress import (
     add_complaint,
     add_complaint_tool,
-    check_for_complaint,
-    check_for_complaint_tool,
     get_complaint_details,
     get_complaint_details_tool,
 )
@@ -78,7 +76,6 @@ async def main():
                 instructions=bot_prompt,
                 function_declaration=[
                     add_complaint_tool,
-                    check_for_complaint_tool,
                     get_complaint_details_tool,
                 ],
             ),
@@ -168,44 +165,36 @@ async def main():
             name = tool_call.get("name")
             args = json.loads(tool_call.get("arguments"))
 
-            if name == "check_for_complaint":
-                if not args:
-                    print("Missing required parameter 'name'")
-                argname = args["name"]
-                boolean = check_for_complaint(argname)
-
-                function_response = {
-                    "exists": boolean,
-                }
-
-            elif name == "add_complaint":
+            if name == "add_complaint":
                 if not args:
                     print("Missing required parameters 'name' and 'address'")
                 argname = args["name"]
                 argaddress = args["address"]
 
-                add_complaint(argname, argaddress)
-                response = f"Stored the address of {argname} as {argaddress}"
+                id = add_complaint(argname, argaddress)
+                response = "Stored the name and complaint successfully"
                 function_response = {
                     "response": response,
+                    "complaint_id": id,
                 }
             elif name == "get_complaint_details":
                 if not args:
-                    print("Missing required parameter 'name'")
-                argname = args["name"]
+                    print("Missing required parameter 'complaint_id'")
+                id = args["complaint_id"]
 
                 response = {
                     "error": "Name not found in the complaint book",
                 }
-                details = get_complaint_details(argname)
+                details = get_complaint_details(id)
                 if details is not None:
                     response = {
+                        "name": details.get("name"),
                         "complaint": details.get("complaint"),
                         "resolution_period": details.get("resolution_period"),
                     }
 
                 function_response = response
-
+            else:
                 print(f"Unknown function name: {tool_call.get('name')}")
 
             await callback(function_response)
