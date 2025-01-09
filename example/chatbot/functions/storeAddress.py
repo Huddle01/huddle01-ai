@@ -1,6 +1,19 @@
-from typing import Dict
+import random
+from typing import Dict, TypedDict
 
-address_book: dict[str, str] = {}
+
+class ComplaintType(TypedDict):
+    complaint: str
+    resolution_period: str
+
+
+complaint_book: dict[str, ComplaintType] = {
+    "Chad": {
+        "complaint": "chat in the app is not working",
+        "resolution_period": "3 hours",
+    },
+    "Brad": {"complaint": "I am not able to login", "resolution_period": "2 days"},
+}
 
 
 def check_for_complaint(name: str) -> bool:
@@ -12,7 +25,7 @@ def check_for_complaint(name: str) -> bool:
     Returns:
         True if the name is already stored, False otherwise.
     """
-    return name in address_book
+    return name in complaint_book
 
 
 check_for_complaint_tool: Dict = {
@@ -31,63 +44,70 @@ check_for_complaint_tool: Dict = {
 }
 
 
-def add_complaint(name: str, address: str) -> None:
-    """Store the name and address of a person in the complaint book.
+def add_complaint(name: str, complaint: str) -> None:
+    """Store the name and complaint of a person in the complaint book.
 
     Args:
         name: Name of the person.
-        address: City or State or Country Name.
+        complaint: Complaint of the person.
     """
-    address_book[name] = address
-    print(f"Stored the address of {name} as {address}")
+    # Generate a random resolution period for the complaint in days or hours
+    if random.choice([True, False]):
+        resolution_period = f"{random.randint(1, 7)} days"
+    else:
+        resolution_period = f"{random.randint(1, 24)} hours"
+
+    complaint_book[name] = ComplaintType(
+        complaint=complaint, resolution_period=resolution_period
+    )
+    print(
+        f"Stored the complaint of {name} as '{complaint}' with a resolution period of {resolution_period}"
+    )
     return None
 
 
 add_complaint_tool: Dict = {
     "name": "add_complaint",
-    "description": "Store the name and address of a person in the complaint book.",
+    "description": "Store the name and complaint of a person in the complaint book.",
     "parameters": {
         "type": "OBJECT",
         "properties": {
             "name": {
                 "type": "STRING",
-                "description": "Name of the person whose address is to be stored.",
+                "description": "Name of the person whose complaint is to be stored.",
             },
-            "address": {
-                "type": "STRING",
-                "description": "City, State, or Country Name to store for the person.",
-            },
+            "complaint": {"type": "STRING", "description": "Complaint of the person"},
         },
-        "required": ["name", "address"],
+        "required": ["name", "complaint"],
     },
 }
 
 
-def get_complaint_details(name: str) -> str:
-    """Get the address of a person from the complaint book.
+def get_complaint_details(name: str) -> ComplaintType | None:
+    """Get the complaint and resolution period of the complaint of a person from the complaint book.
 
     Args:
         name: Name of the person.
 
     Returns:
-        The address of the person, or an error message if the name is not found.
+        The complaint and resolution period of the complaint, or an error message if the name is not found.
     """
     if check_for_complaint(name):
-        return address_book[name]
+        return complaint_book[name]
     else:
-        return f"Address not found for {name}"
+        return None
 
 
 get_complaint_details_tool: Dict = {
     "name": "get_complaint_details",
-    "description": "Gets the address of a person from the complaint book.",
+    "description": "Get the complaint and resolution period of the complaint of a person from the complaint book",
     "parameters": {
         "type": "OBJECT",
         "properties": {
             "name": {
                 "type": "STRING",
-                "description": "Name of the person whose address is to be retrieved.",
-            }
+                "description": "Name of the person whose complaint is to be retrieved.",
+            },
         },
         "required": ["name"],
     },

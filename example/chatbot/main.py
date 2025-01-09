@@ -165,15 +165,17 @@ async def main():
             logger.info(f"Tool Call: {tool_call}")
             function_response = {}
 
-            name = tool_call.get("type")
+            name = tool_call.get("name")
             args = json.loads(tool_call.get("arguments"))
+
             if name == "check_for_complaint":
                 if not args:
                     print("Missing required parameter 'name'")
                 argname = args["name"]
                 boolean = check_for_complaint(argname)
+
                 function_response = {
-                    "response": {"exists": boolean},
+                    "exists": boolean,
                 }
 
             elif name == "add_complaint":
@@ -191,13 +193,19 @@ async def main():
                 if not args:
                     print("Missing required parameter 'name'")
                 argname = args["name"]
-                address = get_complaint_details(argname)
 
-                function_response = {
-                    "name": argname,
-                    "address": address,
+                response = {
+                    "error": "Name not found in the complaint book",
                 }
-            else:
+                details = get_complaint_details(argname)
+                if details is not None:
+                    response = {
+                        "complaint": details.get("complaint"),
+                        "resolution_period": details.get("resolution_period"),
+                    }
+
+                function_response = response
+
                 print(f"Unknown function name: {tool_call.get('name')}")
 
             await callback(function_response)

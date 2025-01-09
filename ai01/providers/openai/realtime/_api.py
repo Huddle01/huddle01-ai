@@ -44,7 +44,9 @@ TranscriptionModels = Literal["whisper-1"]
 TranscriptionModels is used to specify the model to use for the generation.
 """
 
-RealTimeModels = Literal["gpt-4o-realtime-preview", "gpt-4o-realtime"]
+RealTimeModels = Literal[
+    "gpt-4o-realtime-preview", "gpt-4o-realtime", "gpt-4o-realtime-preview-2024-12-17"
+]
 """
 RealTimeModels is used to specify the model to use for the generation.
 """

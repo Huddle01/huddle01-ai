@@ -55,7 +55,7 @@ async def main():
         rtcOptions = RTCOptions(
             api_key=huddle_api_key,
             project_id=huddle_project_id,
-            room_id="vne-yicp-jyj",
+            room_id="DAAO",
             role=Role.HOST,
             metadata={"displayName": "Agent"},
             huddle_client_options=HuddleClientOptions(
@@ -73,10 +73,12 @@ async def main():
             agent=agent,
             options=GeminiOptions(
                 gemini_api_key=gemini_api_key,
-                system_instruction="You are a Customer Representative named Brad who works for a Chat App,\
-                Check for complaints and help store the names and complaints of customers regarding this chat app,\
-                who want to register a complaint, and help check if a complaint already exists.\
-                Greet the customer when you hear him",
+                system_instruction="""### Role
+                You are an AI Customer Support Agent named Sophie, Your role is to register customer complaints.
+                There are three things the customer can do:
+                    1. Register a complaint: if they want to register a complaint. ask for their name and complaint.
+                    2. Check for a complaint: if they want to check if their complaint is already registered. ask for their name.
+                    3. Get complaint details: if they want to get the details of their complaint. ask for their name.""",
                 config=GeminiConfig(
                     function_declaration=[
                         add_complaint_tool,

@@ -3,7 +3,7 @@ import base64
 import json
 import logging
 import uuid
-from typing import List, Literal, Optional, Union
+from typing import Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel
 
@@ -28,7 +28,7 @@ class RealTimeModelOptions(BaseModel):
     OpenAI API Key is the API Key for the OpenAI API.
     """
 
-    model: _api.RealTimeModels = "gpt-4o-realtime-preview"
+    model: _api.RealTimeModels = "gpt-4o-realtime-preview-2024-12-17"
     """
     Model is the RealTimeModel to be used, defaults to gpt-4o-realtime-preview.
     """
@@ -43,7 +43,7 @@ class RealTimeModelOptions(BaseModel):
     Modalities is the list of things to be used by the Model.
     """
 
-    voice: _api.Voice = "alloy"
+    voice: _api.Voice = "sage"
     """
     Voice is the of audio voices which will be generated and returned by the Model.
     """
@@ -78,7 +78,7 @@ class RealTimeModelOptions(BaseModel):
     Tools are different other APIs which the Model can access, defaults to auto.
     """
 
-    function_declaration: List = []
+    function_declaration: List[Dict] = []
 
     server_vad_opts: _api.ServerVad = {
         "type": "server_vad",
@@ -181,6 +181,25 @@ class RealTimeModel(EnhancedEventEmitter):
 
             opts = self._opts
 
+            tools = []
+
+            def lowercase_type_values(d):
+                for key, value in d.items():
+                    if key == "type" and isinstance(value, str):
+                        d[key] = value.lower()
+                    elif isinstance(value, dict):
+                        lowercase_type_values(value)
+                    elif isinstance(value, list):
+                        for item in value:
+                            if isinstance(item, dict):
+                                lowercase_type_values(item)
+
+            if opts.function_declaration:
+                for tool in opts.function_declaration:
+                    tool_dict = {"type": "function", **tool}
+                    lowercase_type_values(tool_dict)
+                    tools.append(tool_dict)
+
             session_data: _api.ClientEvent.SessionUpdateData = {
                 "instructions": self._opts.instructions,
                 "voice": opts.voice,
@@ -189,15 +208,15 @@ class RealTimeModel(EnhancedEventEmitter):
                 "max_response_output_tokens": self._opts.max_response_output_tokens,
                 "modalities": opts.modalities,
                 "temperature": opts.temperature,
-                "tools": opts.function_declaration,
+                "tools": tools,
                 "turn_detection": opts.server_vad_opts,
                 "output_audio_format": opts.output_audio_format,
                 "tool_choice": opts.tool_choice,
             }
 
             payload: _api.ClientEvent.SessionUpdate = {
-                "session": session_data,
                 "type": "session.update",
+                "session": session_data,
             }
 
             await self.socket.send(payload)
@@ -331,6 +350,7 @@ class RealTimeModel(EnhancedEventEmitter):
         Session Created is the Event Handler for the Session Created Event.
         """
         self._logger.info("Session Created")
+        self._logger.info(data)
 
     def _handle_error(self, data: dict):
         """
@@ -420,17 +440,17 @@ class RealTimeModel(EnhancedEventEmitter):
 
         call_id = data.get("call_id")
 
-        async def callback(result):
-            await self.socket.send(
-                {
-                    "type": "conversation.item.create",
-                    "item": {
-                        "type": "function_call_output",
-                        "output": result,
-                        "call_id": call_id,
-                    },
-                }
-            )
+        async def callback(result: dict):
+            response = {
+                "type": "conversation.item.create",
+                "item": {
+                    "type": "function_call_output",
+                    "output": json.dumps(result),
+                    "call_id": call_id,
+                },
+            }
+            await self.socket.send(response)
+            print("sent the callback", response)
 
         self.agent.emit(AgentsEvents.ToolCall, callback, data)
 
