@@ -79,6 +79,9 @@ class RealTimeModelOptions(BaseModel):
     """
 
     function_declaration: List[Dict] = []
+    """
+    Function Declaration is the list of functions which can be used by the Model.
+    """
 
     server_vad_opts: _api.ServerVad = {
         "type": "server_vad",
@@ -181,7 +184,7 @@ class RealTimeModel(EnhancedEventEmitter):
 
             opts = self._opts
 
-            tools = []
+            tools: List[Dict] = []
 
             def lowercase_type_values(d):
                 for key, value in d.items():
