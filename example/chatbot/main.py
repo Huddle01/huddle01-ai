@@ -1,12 +1,18 @@
 import asyncio
+import json
 import logging
 import os
+from typing import Callable
 
 from dotenv import load_dotenv
 
 from ai01.agent import Agent, AgentOptions, AgentsEvents
 from ai01.providers.openai import AudioTrack
-from ai01.providers.openai.realtime import RealTimeModel, RealTimeModelOptions
+from ai01.providers.openai.realtime import (
+    RealTimeModel,
+    RealTimeModelOptions,
+    ServerEvent,
+)
 from ai01.rtc import (
     HuddleClientOptions,
     ProduceOptions,
@@ -14,6 +20,12 @@ from ai01.rtc import (
     RoomEvents,
     RoomEventsData,
     RTCOptions,
+)
+from example.chatbot.functions.storeAddress import (
+    add_complaint,
+    add_complaint_tool,
+    get_complaint_details,
+    get_complaint_details_tool,
 )
 
 from .prompt import bot_prompt
@@ -62,6 +74,10 @@ async def main():
             options=RealTimeModelOptions(
                 oai_api_key=openai_api_key,
                 instructions=bot_prompt,
+                function_declaration=[
+                    add_complaint_tool,
+                    get_complaint_details_tool,
+                ],
             ),
         )
 
@@ -138,6 +154,50 @@ async def main():
         @agent.on(AgentsEvents.Thinking)
         def on_agent_thinking():
             logger.info("Agent Thinking")
+
+        @agent.on(AgentsEvents.ToolCall)
+        async def on_tool_call(
+            callback: Callable, tool_call: ServerEvent.ResponseFunctionCallArgumentsDone
+        ):
+            logger.info(f"Tool Call: {tool_call}")
+            function_response = {}
+
+            name = tool_call.get("name")
+            args = json.loads(tool_call.get("arguments"))
+
+            if name == "add_complaint":
+                if not args:
+                    print("Missing required parameters 'name' and 'address'")
+                argname = args["name"]
+                argaddress = args["address"]
+
+                id = add_complaint(argname, argaddress)
+                response = "Stored the name and complaint successfully"
+                function_response = {
+                    "response": response,
+                    "complaint_id": id,
+                }
+            elif name == "get_complaint_details":
+                if not args:
+                    print("Missing required parameter 'complaint_id'")
+                id = args["complaint_id"]
+
+                response = {
+                    "error": "Name not found in the complaint book",
+                }
+                details = get_complaint_details(id)
+                if details is not None:
+                    response = {
+                        "name": details.get("name"),
+                        "complaint": details.get("complaint"),
+                        "resolution_period": details.get("resolution_period"),
+                    }
+
+                function_response = response
+            else:
+                print(f"Unknown function name: {tool_call.get('name')}")
+
+            await callback(function_response)
 
         # Connect to the LLM to the Room
         await llm.connect()
