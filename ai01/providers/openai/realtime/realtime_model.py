@@ -350,7 +350,6 @@ class RealTimeModel(EnhancedEventEmitter):
         Session Created is the Event Handler for the Session Created Event.
         """
         self._logger.info("Session Created")
-        self._logger.info(data)
 
     def _handle_error(self, data: dict):
         """
@@ -436,7 +435,6 @@ class RealTimeModel(EnhancedEventEmitter):
         """
         Response Function Call Arguments Done is the Event Handler for the Response Function Call Arguments Done Event.
         """
-        self._logger.info("Response Function Call Arguments Done")
 
         call_id = data.get("call_id")
 
@@ -450,7 +448,6 @@ class RealTimeModel(EnhancedEventEmitter):
                 },
             }
             await self.socket.send(response)
-            print("sent the callback", response)
 
         self.agent.emit(AgentsEvents.ToolCall, callback, data)
 
