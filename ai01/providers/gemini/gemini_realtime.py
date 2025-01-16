@@ -111,14 +111,11 @@ class GeminiRealtime(EnhancedEventEmitter):
             raise Exception("Session is not connected")
 
         try:
-            # input: types.LiveClientRealtimeInputDict = (
-            #     types.LiveClientRealtimeInputDict(
-            #         media_chunks=[{"data": audio_bytes, "mime_type": "audio/pcm"}]
-            #     )
-            # )
-            await self.session.send(
-                {"data": audio_bytes, "mime_type": "audio/pcm"}, end_of_turn=False
+            input = types.LiveClientRealtimeInput(
+                media_chunks=[types.Blob(data=audio_bytes, mime_type="audio/pcm")]
             )
+            await self.session.send(input=input, end_of_turn=False)
+        # {"data": audio_bytes, "mime_type": "audio/pcm"}, end_of_turn=False
         except websockets.exceptions.ConnectionClosed:
             self._logger.warning("WebSocket connection closed while sending audio.")
             self.session = None
