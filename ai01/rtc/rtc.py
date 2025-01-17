@@ -9,6 +9,7 @@ from huddle01 import (
     HuddleClientOptions,
     Role,
 )
+from huddle01.handlers import ConsumeOptions
 from huddle01.local_peer import ProduceOptions
 from pydantic import BaseModel
 
@@ -99,6 +100,20 @@ class RTC:
             )
 
         await local_peer.produce(options=options)
+
+    async def consume(self, peer_id: str, producer_id: str):
+        """
+        Consumes Media Stream Tracks from the Room.
+        """
+        local_peer = self.huddle_client.local_peer
+
+        if not local_peer:
+            raise ValueError(
+                "Local Peer is not created, make sure to connect to the Room before consuming."
+            )
+
+        options = ConsumeOptions(producer_id=producer_id, producer_peer_id=peer_id)
+        await local_peer.consume(options=options)
 
     async def join(self):
         """
