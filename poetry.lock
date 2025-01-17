@@ -748,13 +748,13 @@ files = [
 
 [[package]]
 name = "huddle01"
-version = "1.0.10"
+version = "1.0.11"
 description = "Python Real-Time-SDK for Huddle01 dRTC Network"
 optional = false
 python-versions = "<4.0,>=3.12"
 files = [
-    {file = "huddle01-1.0.10-py3-none-any.whl", hash = "sha256:41031b4f14f516626eebe7068aef0fee86265f15ce49d81435a836acc343801e"},
-    {file = "huddle01-1.0.10.tar.gz", hash = "sha256:a15a8df6e887aaefd8d8e31c751e1a896001c73927b9add3e97c1e5dd53b83f1"},
+    {file = "huddle01-1.0.11-py3-none-any.whl", hash = "sha256:b1df406cf99712b2232d803e997a3c6cdcf1930d1dbc8756b8e32b13ae37e1cb"},
+    {file = "huddle01-1.0.11.tar.gz", hash = "sha256:bfdb00b1ccfe9d89946c411177897f0e7b58a5f0c66766e1386b19b112ee1730"},
 ]
 
 [package.dependencies]
@@ -1757,4 +1757,4 @@ propcache = ">=0.2.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "cb43b396ad1680da63b82d45f9e19af30263f590eeb37128701377ea66153a2b"
+content-hash = "630083be0b271b52607819d0fec5fbe441991197f765836fa5dc88df0e9e8926"

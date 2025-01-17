@@ -47,18 +47,26 @@ async def main():
         # OpenAI API Key
         openai_api_key = os.getenv("OPENAI_API_KEY")
 
-        if not huddle_api_key or not huddle_project_id or not openai_api_key:
+        # Room ID
+        room_id = os.getenv("ROOM_ID")
+
+        if (
+            not huddle_api_key
+            or not huddle_project_id
+            or not openai_api_key
+            or not room_id
+        ):
             raise ValueError("Required Environment Variables are not set")
 
         # RTCOptions is the configuration for the RTC
         rtcOptions = RTCOptions(
             api_key=huddle_api_key,
             project_id=huddle_project_id,
-            room_id="DAAO",
+            room_id=room_id,
             role=Role.HOST,
             metadata={"displayName": "Agent"},
             huddle_client_options=HuddleClientOptions(
-                autoConsume=True, volatileMessaging=False
+                autoConsume=False, volatileMessaging=False
             ),
         )
 
@@ -100,9 +108,15 @@ async def main():
         # def on_room_closed(data: RoomEventsData.RoomClosed):
         #     logger.info("Room Closed")
 
-        # @room.on(RoomEvents.RemoteProducerAdded)
-        # def on_remote_producer_added(data: RoomEventsData.RemoteProducerAdded):
-        #     logger.info(f"Remote Producer Added: {data['producer_id']}")
+        @room.on(RoomEvents.RemoteProducerAdded)
+        def on_remote_producer_added(data: RoomEventsData.RemoteProducerAdded):
+            logger.info(f"Remote Producer Added: {data['producer_id']}")
+            if data["label"] == "audio":
+                asyncio.create_task(
+                    agent.rtc.consume(
+                        peer_id=data["remote_peer_id"], producer_id=data["producer_id"]
+                    )
+                )
 
         # @room.on(RoomEvents.RemoteProducerClosed)
         # def on_remote_producer_closed(data: RoomEventsData.RemoteProducerClosed):
