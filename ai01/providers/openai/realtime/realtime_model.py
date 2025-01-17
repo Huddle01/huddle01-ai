@@ -8,6 +8,7 @@ from typing import Dict, List, Literal, Optional, Union
 from pydantic import BaseModel
 
 from ai01.agent import Agent, AgentsEvents
+from ai01.providers._api import ToolCallData, ToolResponseData
 from ai01.utils.socket import SocketClient
 
 from ....utils.emitter import EnhancedEventEmitter
@@ -441,18 +442,23 @@ class RealTimeModel(EnhancedEventEmitter):
 
         call_id = data.get("call_id")
 
-        async def callback(result: dict):
+        async def callback(data: ToolResponseData):
             response = {
                 "type": "conversation.item.create",
                 "item": {
                     "type": "function_call_output",
-                    "output": json.dumps(result),
+                    "output": json.dumps(data.result),
                     "call_id": call_id,
                 },
             }
             await self.socket.send(response)
 
-        self.agent.emit(AgentsEvents.ToolCall, callback, data)
+        tool_call_data = ToolCallData(
+            function_name=data.get("name"),
+            arguments=json.loads(data.get("arguments")),
+        )
+
+        self.agent.emit(AgentsEvents.ToolCall, callback, tool_call_data)
 
     def _handle_response_audio_transcript_delta(self, data: dict):
         """

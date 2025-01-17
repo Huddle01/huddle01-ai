@@ -11,6 +11,7 @@ from pydantic.v1.main import BaseModel
 
 from ai01.agent._models import AgentsEvents
 from ai01.agent.agent import Agent
+from ai01.providers._api import ToolCallData, ToolResponseData
 from ai01.providers.gemini.conversation import Conversation
 
 from ...utils.emitter import EnhancedEventEmitter
@@ -132,9 +133,35 @@ class GeminiRealtime(EnhancedEventEmitter):
                         print(response.text, end="", flush=True)
                     elif response.tool_call:
                         print("tool call recieved", response.tool_call)
-                        self.agent.emit(
-                            AgentsEvents.ToolCall, self.session.send, response.tool_call
-                        )
+
+                        if response.tool_call.function_calls is None:
+                            continue
+
+                        for function_call in response.tool_call.function_calls:
+                            if function_call.name is None or function_call.id is None:
+                                continue
+
+                            async def callback(data: ToolResponseData):
+                                if self.session is None:
+                                    return
+
+                                response = types.FunctionResponse(
+                                    id=function_call.id,
+                                    name=function_call.name,
+                                    response=data.result,
+                                )
+                                await self.session.send(
+                                    input=response, end_of_turn=data.end_of_turn
+                                )
+
+                            tool_call_data = ToolCallData(
+                                function_name=function_call.name,
+                                arguments=function_call.args,
+                            )
+
+                            self.agent.emit(
+                                AgentsEvents.ToolCall, callback, tool_call_data
+                            )
 
         except websockets.exceptions.ConnectionClosedOK:
             self._logger.info("WebSocket connection closed normally.")
