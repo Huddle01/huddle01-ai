@@ -181,15 +181,15 @@ async def main():
             response = ToolResponseData(result={}, end_of_turn=False)
 
             if name == "add_complaint":
-                if args is None or "name" not in args or "address" not in args:
-                    logger.error("Missing required parameters 'name' and 'address'")
+                if args is None or "name" not in args or "complaint" not in args:
+                    logger.error("Missing required parameters 'name' and 'complaint'")
                     response.result = {
-                        "error": "Missing required parameters 'name' and 'address'"
+                        "error": "Missing required parameters 'name' and 'complaint'"
                     }
                 else:
                     argname = args["name"]
-                    argaddress = args["address"]
-                    id = add_complaint(argname, argaddress)
+                    argcomplaint = args["complaint"]
+                    id = add_complaint(argname, argcomplaint)
                     response.result = {
                         "message": "Stored the name and complaint successfully",
                         "complaint_id": id,
@@ -219,6 +219,7 @@ async def main():
                 logger.error(f"Unknown function name: {name}")
                 response.result = {"error": f"Unknown function name: {name}"}
 
+            logger.info(f"Response: {response}")
             await callback(response)
 
         # Connect to the LLM to the Room

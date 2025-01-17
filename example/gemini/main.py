@@ -84,7 +84,7 @@ async def main():
                 system_instruction="""### Role
                 You are an AI Customer Support Agent named Sophie, Your role is to register customer complaints.
                 There are three things the customer can do:
-                    1. Register a complaint: if they want to register a complaint. ask for their name and complaint.
+                    1. Register a complaint: if they want to register a complaint , use \'add_complaint\' tool
                     2. Check for a complaint: if they want to check if their complaint is already registered. ask for their name.
                     3. Get complaint details: if they want to get the details of their complaint. ask for their name.""",
                 config=GeminiConfig(
@@ -232,7 +232,7 @@ async def main():
             else:
                 logger.error(f"Unknown function name: {name}")
                 response.result = {"error": f"Unknown function name: {name}"}
-
+            logger.info(f"Tool Response: {response}")
             await callback(response)
 
         # Connect to the LLM to the Room
