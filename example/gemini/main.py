@@ -1,12 +1,12 @@
 import asyncio
 import logging
 import os
-from typing import Callable
+from typing import Awaitable, Callable
 
 from dotenv import load_dotenv
-from google.genai import types
 
 from ai01.agent import Agent, AgentOptions, AgentsEvents
+from ai01.providers._api import ToolCallData, ToolResponseData
 from ai01.providers.gemini.gemini_realtime import (
     GeminiConfig,
     GeminiOptions,
@@ -48,18 +48,26 @@ async def main():
         # gemini API Key
         gemini_api_key = os.getenv("GEMINI_API_KEY")
 
-        if not huddle_api_key or not huddle_project_id or not gemini_api_key:
+        # Room Id
+        room_id = os.getenv("ROOM_ID")
+
+        if (
+            not huddle_api_key
+            or not huddle_project_id
+            or not gemini_api_key
+            or not room_id
+        ):
             raise ValueError("Required Environment Variables are not set")
 
         # RTCOptions is the configuration for the RTC
         rtcOptions = RTCOptions(
             api_key=huddle_api_key,
             project_id=huddle_project_id,
-            room_id="DAAO",
+            room_id=room_id,
             role=Role.HOST,
             metadata={"displayName": "Agent"},
             huddle_client_options=HuddleClientOptions(
-                autoConsume=True, volatileMessaging=False
+                autoConsume=False, volatileMessaging=False
             ),
         )
 
@@ -76,7 +84,7 @@ async def main():
                 system_instruction="""### Role
                 You are an AI Customer Support Agent named Sophie, Your role is to register customer complaints.
                 There are three things the customer can do:
-                    1. Register a complaint: if they want to register a complaint. ask for their name and complaint.
+                    1. Register a complaint: if they want to register a complaint , use \'add_complaint\' tool
                     2. Check for a complaint: if they want to check if their complaint is already registered. ask for their name.
                     3. Get complaint details: if they want to get the details of their complaint. ask for their name.""",
                 config=GeminiConfig(
@@ -109,9 +117,15 @@ async def main():
         # def on_room_closed(data: RoomEventsData.RoomClosed):
         #     logger.info("Room Closed")
 
-        # @room.on(RoomEvents.RemoteProducerAdded)
-        # def on_remote_producer_added(data: RoomEventsData.RemoteProducerAdded):
-        #     logger.info(f"Remote Producer Added: {data['producer_id']}")
+        @room.on(RoomEvents.RemoteProducerAdded)
+        def on_remote_producer_added(data: RoomEventsData.RemoteProducerAdded):
+            logger.info(f"Remote Producer Added: {data['producer_id']}")
+            if data["label"] == "audio":
+                asyncio.create_task(
+                    agent.rtc.consume(
+                        peer_id=data["remote_peer_id"], producer_id=data["producer_id"]
+                    )
+                )
 
         # @room.on(RoomEvents.RemoteProducerClosed)
         # def on_remote_producer_closed(data: RoomEventsData.RemoteProducerClosed):
@@ -164,76 +178,62 @@ async def main():
             logger.info("Agent Thinking")
 
         @agent.on(AgentsEvents.ToolCall)
-        async def on_tool_call(callback: Callable, tool_call: types.LiveServerToolCall):
+        async def on_tool_call(
+            callback: Callable[[ToolResponseData], Awaitable[None]],
+            tool_call: ToolCallData,
+        ):
             logger.info(f"Tool Call: {tool_call}")
-            function_responses = []
 
-            if tool_call.function_calls:
-                for function_call in tool_call.function_calls:
-                    name = function_call.name
-                    args = function_call.args
-                    # Extract the numeric part from Gemini's function call ID
-                    call_id = function_call.id
-                    if name == "check_for_complaint":
-                        if not args:
-                            print("Missing required parameter 'name'")
-                            continue
-                        argname = args["name"]
-                        boolean = check_for_complaint(argname)
-                        function_responses.append(
-                            {
-                                "name": "check_for_complaint",
-                                "response": {"exists": boolean},
-                                "id": call_id,
-                            }
-                        )
-                    elif name == "add_complaint":
-                        if not args:
-                            print("Missing required parameters 'name' and 'complaint'")
-                            continue
-                        argname = args["name"]
-                        argcomplaint = args["complaint"]
+            name = tool_call.function_name
+            args = tool_call.arguments
 
-                        add_complaint(argname, argcomplaint)
-                        response = (
-                            f"Stored the complaint of {argname} as {argcomplaint}"
-                        )
-                        function_responses.append(
-                            {
-                                "name": "add_complaint",
-                                "response": {"response": response},
-                                "id": call_id,
-                            }
-                        )
-                    elif name == "get_complaint_details":
-                        if not args:
-                            print("Missing required parameter 'name'")
-                            continue
-                        argname = args["name"]
+            response = ToolResponseData(result={}, end_of_turn=False)
 
-                        response = {
-                            "error": "Name not found in the complaint book",
+            if name == "check_for_complaint":
+                if args is None or "name" not in args:
+                    logger.error("Missing required parameter 'name'")
+                    response.result = {"error": "Missing required parameter 'name'"}
+                else:
+                    argname = args["name"]
+                    boolean = check_for_complaint(argname)
+                    response.result = {"exists": boolean}
+
+            elif name == "add_complaint":
+                if args is None or "name" not in args or "complaint" not in args:
+                    logger.error("Missing required parameters 'name' and 'complaint'")
+                    response.result = {
+                        "error": "Missing required parameters 'name' and 'complaint'"
+                    }
+                else:
+                    argname = args["name"]
+                    argcomplaint = args["complaint"]
+                    add_complaint(argname, argcomplaint)
+                    response.result = {
+                        "message": f"Stored the complaint of {argname} as {argcomplaint}"
+                    }
+
+            elif name == "get_complaint_details":
+                if args is None or "name" not in args:
+                    logger.error("Missing required parameter 'name'")
+                    response.result = {"error": "Missing required parameter 'name'"}
+                else:
+                    argname = args["name"]
+                    details = get_complaint_details(argname)
+                    if details is not None:
+                        response.result = {
+                            "complaint": details.get("complaint"),
+                            "resolution_period": details.get("resolution_period"),
+                        }
+                    else:
+                        response.result = {
+                            "error": "Name not found in the complaint book"
                         }
 
-                        details = get_complaint_details(argname)
-
-                        if details is not None:
-                            response = {
-                                "complaint": details.get("complaint"),
-                                "resolution_period": details.get("resolution_period"),
-                            }
-
-                        function_responses.append(
-                            {
-                                "name": "get_complaint_details",
-                                "response": response,
-                                "id": call_id,
-                            }
-                        )
-                    else:
-                        print(f"Unknown function name: {function_call.name}")
-
-            await callback(function_responses)
+            else:
+                logger.error(f"Unknown function name: {name}")
+                response.result = {"error": f"Unknown function name: {name}"}
+            logger.info(f"Tool Response: {response}")
+            await callback(response)
 
         # Connect to the LLM to the Room
         await llm.connect()

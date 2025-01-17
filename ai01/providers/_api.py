@@ -1,4 +1,6 @@
-from typing import TypedDict
+from typing import Any, Optional, TypedDict
+
+from pydantic import BaseModel
 
 
 class EventType(str):
@@ -20,3 +22,13 @@ class Events:
 
     class Thinking(TypedDict):
         peer_id: str
+
+
+class ToolCallData(BaseModel):
+    function_name: str
+    arguments: Optional[dict[str, Any]]
+
+
+class ToolResponseData(BaseModel):
+    result: dict
+    end_of_turn: bool = False
