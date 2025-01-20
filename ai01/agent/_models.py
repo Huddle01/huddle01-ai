@@ -6,3 +6,4 @@ class AgentsEvents(str):
     Listening: str = "Listening"
     Thinking: str = "Thinking"
     ToolCall: str = "ToolCall"
+    TextResponse: str = "TextResponse"

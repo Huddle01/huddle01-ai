@@ -229,6 +229,30 @@ class RealTimeModel(EnhancedEventEmitter):
             self._logger.error(f"Error Sending Session Update Event: {e}")
             raise
 
+    async def send_text(self, text: str, end_of_turn: bool=False):
+        """
+        Send Text is the method to send the Text Event to the RealTime API.
+        """
+        if not self.socket.connected:
+            raise _exceptions.RealtimeModelNotConnectedError()
+
+        payload = {
+            "type": "conversation.item.create",
+            "event_id": str(uuid.uuid4()),
+            "item": {
+                "type": "message",
+                "role": "user",
+                "content": [{"type": "input_text", "text": text}],
+            },
+        }
+
+        await self.socket.send(payload)
+
+        if(end_of_turn)
+            await self.socket.send({
+                "type":"response.create",
+            })
+
     async def _send_audio_append(self, audio_byte: bytes):
         """
         Send Audio Append is the method to send the Audio Append Event to the RealTime API.
@@ -306,16 +330,16 @@ class RealTimeModel(EnhancedEventEmitter):
             self._handle_response_function_call_arguments_done(data)
         # elif event == "response.audio.done":
         #     self._handle_response_audio_done(data)
-        # elif event == "response.text.done":
-        #     self._handle_response_text_done(data)
+        elif event == "response.text.done":
+            self._handle_response_text_done(data)
         # elif event == "response.audio_transcript.done":
         #     self._handle_response_audio_transcript_done(data)
         # elif event == "response.content_part.done":
         #     self._handle_response_content_part_done(data)
         # elif event == "response.output_item.done":
         #     self._handle_response_output_item_done(data)
-        # elif event == "response.done":
-        #     self._handle_response_done(data)
+        elif event == "response.done":
+            self._handle_response_done(data)
 
         self._logger.info(f"Unhandled Event: {event}")
 
@@ -477,6 +501,7 @@ class RealTimeModel(EnhancedEventEmitter):
         Response Text Done is the Event Handler for the Response Text Done Event.
         """
         self._logger.info("Response Text Done")
+        self.agent.emit(AgentsEvents.TextResponse, data.get("text"))
 
     def _handle_response_audio_transcript_done(self, data: dict):
         """

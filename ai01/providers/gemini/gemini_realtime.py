@@ -50,6 +50,8 @@ class GeminiOptions(BaseModel):
         "You are a Helpul Voice Assistant. You can help me with my queries."
     )
 
+    response_modalities: Optional[List[types.Modality]] = ["AUDIO"]
+
     config: GeminiConfig
 
     """
@@ -107,6 +109,16 @@ class GeminiRealtime(EnhancedEventEmitter):
     def __repr__(self):
         return f"Gemini realtime: {self._options.model}"
 
+    async def send_text(self, text: str, end_of_turn: bool = False):
+        if self.session is None:
+            raise Exception("Session is not connected")
+
+        try:
+            await self.session.send(input=text, end_of_turn=end_of_turn)
+        except websockets.exceptions.ConnectionClosed:
+            self._logger.warning("WebSocket connection closed while sending text.")
+            self.session = None
+
     async def send_audio(self, audio_bytes: bytes):
         if self.session is None:
             raise Exception("Session is not connected")
@@ -130,7 +142,7 @@ class GeminiRealtime(EnhancedEventEmitter):
                     if response.data:
                         self.agent.audio_track.enqueue_audio(response.data)
                     elif response.text:
-                        print(response.text, end="", flush=True)
+                        self.agent.emit(AgentsEvents.TextResponse, response.text)
                     elif response.tool_call:
                         print("tool call recieved", response.tool_call)
 

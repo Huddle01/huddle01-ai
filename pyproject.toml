@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ai01"
-version = "0.2.14"
+version = "0.2.15"
 description = "AI Agent SDK on Huddle01 dRTC Network"
 authors = ["Om Gupta <omgupta0720@gmail.com>"]
 readme = "README.md"
