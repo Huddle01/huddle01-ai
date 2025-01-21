@@ -229,7 +229,7 @@ class RealTimeModel(EnhancedEventEmitter):
             self._logger.error(f"Error Sending Session Update Event: {e}")
             raise
 
-    async def send_text(self, text: str, end_of_turn: bool=False):
+    async def send_text(self, text: str, end_of_turn: bool = False):
         """
         Send Text is the method to send the Text Event to the RealTime API.
         """
@@ -248,10 +248,12 @@ class RealTimeModel(EnhancedEventEmitter):
 
         await self.socket.send(payload)
 
-        if(end_of_turn)
-            await self.socket.send({
-                "type":"response.create",
-            })
+        if end_of_turn:
+            await self.socket.send(
+                {
+                    "type": "response.create",
+                }
+            )
 
     async def _send_audio_append(self, audio_byte: bytes):
         """
@@ -300,44 +302,38 @@ class RealTimeModel(EnhancedEventEmitter):
             self._handle_input_audio_buffer_speech_stopped(data)
         elif event == "response.audio_transcript.delta":
             self._handle_response_audio_transcript_delta(data)
-        # elif event == "input_audio_buffer.committed":
-        #     self._handle_input_audio_buffer_speech_committed(data)
-        # elif (
-        #     event == "conversation.item.input_audio_transcription.completed"
-        # ):
-        #     self._handle_conversation_item_input_audio_transcription_completed(
-        #         data
-        #     )
-        # elif event == "conversation.item.input_audio_transcription.failed":
-        #     self._handle_conversation_item_input_audio_transcription_failed(
-        #         data
-        #     )
-        # elif event == "conversation.item.created":
-        #     self._handle_conversation_item_created(data)
-        # elif event == "conversation.item.deleted":
-        #     self._handle_conversation_item_deleted(data)
-        # elif event == "conversation.item.truncated":
-        #     self._handle_conversation_item_truncated(data)
-        # elif event == "response.created":
-        #     self._handle_response_created(data)
-        # elif event == "response.output_item.added":
-        #     self._handle_response_output_item_added(data)
-        # elif event == "response.content_part.added":
-        #     self._handle_response_content_part_added(data)
+        elif event == "input_audio_buffer.committed":
+            self._handle_input_audio_buffer_speech_committed(data)
+        elif event == "conversation.item.input_audio_transcription.completed":
+            self._handle_conversation_item_input_audio_transcription_completed(data)
+        elif event == "conversation.item.input_audio_transcription.failed":
+            self._handle_conversation_item_input_audio_transcription_failed(data)
+        elif event == "conversation.item.created":
+            self._handle_conversation_item_created(data)
+        elif event == "conversation.item.deleted":
+            self._handle_conversation_item_deleted(data)
+        elif event == "conversation.item.truncated":
+            self._handle_conversation_item_truncated(data)
+        elif event == "response.created":
+            self._handle_response_created(data)
+        elif event == "response.output_item.added":
+            self._handle_response_output_item_added(data)
+        elif event == "response.content_part.added":
+            self._handle_response_content_part_added(data)
         elif event == "response.audio.delta":
             self._handle_response_audio_delta(data)
         elif event == "response.function_call_arguments.done":
             self._handle_response_function_call_arguments_done(data)
-        # elif event == "response.audio.done":
-        #     self._handle_response_audio_done(data)
+        elif event == "response.audio.done":
+            self._handle_response_audio_done(data)
         elif event == "response.text.done":
             self._handle_response_text_done(data)
-        # elif event == "response.audio_transcript.done":
-        #     self._handle_response_audio_transcript_done(data)
-        # elif event == "response.content_part.done":
-        #     self._handle_response_content_part_done(data)
-        # elif event == "response.output_item.done":
-        #     self._handle_response_output_item_done(data)
+        elif event == "response.audio_transcript.done":
+            self._handle_response_audio_transcript_done(data)
+        elif event == "response.content_part.done":
+            self._handle_response_content_part_done(data)
+        elif event == "response.output_item.done":
+            self._handle_response_output_item_done(data)
         elif event == "response.done":
             self._handle_response_done(data)
 
