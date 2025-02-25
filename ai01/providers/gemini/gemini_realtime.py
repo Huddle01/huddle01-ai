@@ -52,7 +52,7 @@ class GeminiOptions(BaseModel):
 
     response_modalities: Optional[List[types.Modality]] = ["AUDIO"]
 
-    config: GeminiConfig
+    config: Optional[GeminiConfig] = None
 
     """
     Config is the Config which the Model is going to use for the conversation
@@ -67,6 +67,18 @@ class GeminiRealtime(EnhancedEventEmitter):
         self.agent = agent
         self._options = options
 
+        tools = []
+        if options.config is not None:
+            tools.append(
+                types.Tool(
+                    function_declarations=options.config.function_declaration,
+                    google_search=options.config.google_search,
+                    google_search_retrieval=options.config.google_search_retrieval,
+                    code_execution=options.config.code_execution,
+                    retrieval=options.config.retrieval,
+                )
+            )
+
         self.config = types.LiveConnectConfig(
             response_modalities=["AUDIO"],
             system_instruction=types.Content(
@@ -76,16 +88,7 @@ class GeminiRealtime(EnhancedEventEmitter):
                     )
                 ]
             ),
-            tools=[
-                types.Tool(
-                    # ignore the below error
-                    function_declarations=options.config.function_declaration,
-                    google_search=options.config.google_search,
-                    google_search_retrieval=options.config.google_search_retrieval,
-                    code_execution=options.config.code_execution,
-                    retrieval=options.config.retrieval,
-                )
-            ],
+            tools=tools,
         )
 
         self.client = genai.Client(

@@ -82,10 +82,23 @@ class RTC:
 
     @property
     def huddle_client(self):
+        """
+        Huddle Client is the Top level Client for the Huddle01 dRTC Network.
+        """
         return self._huddle_client
+    
+    @property
+    def local_peer(self):
+        """
+        Local Peer is defined as the Local User, who is going to be connected to the Room.
+        """
+        return self._huddle_client.local_peer
 
     @property
     def room(self):
+        """
+        Room is defined as a grouping where Local Peer and Remote Peer exchange Media Stream Tracks and Data.
+        """
         return self._huddle_client.room
 
     async def produce(self, options: ProduceOptions):
