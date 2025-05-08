@@ -6,7 +6,6 @@ from typing import List, Optional
 import websockets
 from google import genai
 from google.genai import types
-from google.genai._api_client import HttpOptions
 from google.genai.live import AsyncSession
 from pydantic.v1.main import BaseModel
 
@@ -34,6 +33,43 @@ class GeminiConfig(BaseModel):
         arbitrary_types_allowed = True
 
 
+class GeminiRealtimeResponse(types.LiveServerMessage):
+    def __init__(self, server_response: types.LiveServerMessage):
+        super().__init__(**server_response.model_dump())
+
+    @property
+    def interrupted(self) -> bool | None:
+        """
+        Check if the response is interrupted
+        """
+        return self.server_content.interrupted
+
+    @property
+    def turn_complete(self) -> bool | None:
+        """
+        Check if the response is turn complete
+        """
+        return self.server_content.turn_complete
+    
+    @property
+    def model_turn(self) -> types.Content | None:
+        """
+        Get the model turn
+        """
+        return self.server_content.model_turn
+    
+    @property
+    def audio(self):
+        """
+        Get the audio response
+        """
+        return self.data
+    
+    def __repr__(self) -> str:
+        return f"<GeminiRealtimeResponse model_turn={self.model_turn} interrupted={self.interrupted} turn_complete={self.turn_complete}>"
+
+
+
 class GeminiOptions(BaseModel):
     """
     realtimeModelOptions is the configuration for the realtimeModel
@@ -44,7 +80,7 @@ class GeminiOptions(BaseModel):
     Gemini API Key is the API Key for the Gemini Provider
     """
 
-    model = "gemini-2.0-flash-exp"
+    model = "gemini-2.0-flash-live-001"
     """
     Model is the Model which is going to be used by the realtimeModel
     """
@@ -74,8 +110,8 @@ class GeminiRealtime(EnhancedEventEmitter):
 
         if options.config is not None:
             # Check if tools are provided in the config
-            if options.config.functions is not None:
-                tools.function_declarations = options.config.functions
+            if options.config.tools is not None:
+                tools.function_declarations = options.config.tools
 
         self.config = types.LiveConnectConfig(
             response_modalities=["AUDIO"],
@@ -91,9 +127,6 @@ class GeminiRealtime(EnhancedEventEmitter):
 
         self.client = genai.Client(
             api_key=self._options.gemini_api_key,
-            http_options=HttpOptions(
-                api_version="v1beta",
-            )
         )
 
         self.loop = asyncio.get_event_loop()
@@ -128,7 +161,7 @@ class GeminiRealtime(EnhancedEventEmitter):
 
         try:
             input = types.LiveClientRealtimeInput(
-                media_chunks=[types.Blob(data=audio_bytes, mime_type="audio/pcm")]
+                media_chunks=[types.Blob(data=audio_bytes, mime_type="audio/pcm;rate=16000")]
             )
             await self.session.send(input=input, end_of_turn=False)
         except websockets.exceptions.ConnectionClosed:
@@ -140,9 +173,15 @@ class GeminiRealtime(EnhancedEventEmitter):
             if self.session is None or self.agent.audio_track is None:
                 raise Exception("Session or AudioTrack is not connected")
             while True:
-                async for response in self.session.receive():
-                    if response.data:
-                        self.agent.audio_track.enqueue_audio(response.data)
+                async for chunk in self.session.receive():
+                    response = GeminiRealtimeResponse(server_response=chunk)
+                    
+                    if response.interrupted:
+                        self._logger.info("Response interrupted")
+                        self.agent.audio_track.flush_audio()
+
+                    if response.audio:
+                        self.agent.audio_track.enqueue_audio(response.audio)
                     elif response.text:
                         self.agent.emit(AgentsEvents.TextResponse, response.text)
                     elif response.tool_call:
@@ -188,7 +227,7 @@ class GeminiRealtime(EnhancedEventEmitter):
                 continue
 
             audio_chunk = self.conversation.recv()
-
+            
             if audio_chunk is None:
                 await asyncio.sleep(0.01)
                 continue
@@ -217,7 +256,9 @@ class GeminiRealtime(EnhancedEventEmitter):
                 async with self.client.aio.live.connect(
                     model=self._options.model, config=self.config
                 ) as session:
+
                     self.session = session
+                    self.session.send(input=self)
 
                     handle_response_task = asyncio.create_task(self.handle_response())
                     fetch_audio_task = asyncio.create_task(self.fetch_audio_from_rtc())
