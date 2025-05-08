@@ -4,7 +4,7 @@ from typing import Dict
 
 from aiortc.mediastreams import MediaStreamTrack
 
-from ...rtc.audio_resampler import AudioResampler
+from ....rtc.audio_resampler import AudioResampler
 
 logger = logging.getLogger(__name__)
 

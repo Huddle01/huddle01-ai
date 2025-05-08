@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 
 from ai01.agent import Agent, AgentOptions, AgentsEvents
 from ai01.providers._api import ToolCallData, ToolResponseData
-from ai01.providers.gemini.gemini_realtime import (
+from ai01.providers.gemini.realtime import (
     GeminiConfig,
     GeminiOptions,
     GeminiRealtime,
@@ -88,7 +88,7 @@ async def main():
                     2. Check for a complaint: if they want to check if their complaint is already registered. ask for their name.
                     3. Get complaint details: if they want to get the details of their complaint. ask for their name.""",
                 config=GeminiConfig(
-                    function_declaration=[
+                    tools=[
                         add_complaint_tool,
                         check_for_complaint_tool,
                         get_complaint_details_tool,

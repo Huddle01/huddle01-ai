@@ -1,5 +1,7 @@
 import random
-from typing import Dict, TypedDict
+from typing import TypedDict
+
+from ai01.providers.gemini.realtime import types
 
 
 class ComplaintType(TypedDict):
@@ -27,21 +29,19 @@ def check_for_complaint(name: str) -> bool:
     """
     return name in complaint_book
 
-
-check_for_complaint_tool: Dict = {
-    "name": "check_for_complaint",
-    "description": "Checks if the name is already stored in the complaint book.",
-    "parameters": {
-        "type": "OBJECT",
-        "properties": {
-            "name": {
-                "type": "STRING",
-                "description": "Name of the person to check in the complaint book.",
-            }
+check_for_complaint_tool = types.FunctionDeclaration(
+    name="check_for_complaint",
+    description="Checks if the name is already stored in the complaint book.",
+    parameters=types.Schema(
+        properties={
+            "name": types.Schema(
+                type='STRING',
+                description="Name of the person to check in the complaint book.",
+            )
         },
-        "required": ["name"],
-    },
-}
+        required=["name"],
+    ),
+)
 
 
 def add_complaint(name: str, complaint: str) -> None:
@@ -66,22 +66,23 @@ def add_complaint(name: str, complaint: str) -> None:
     return None
 
 
-add_complaint_tool: Dict = {
-    "name": "add_complaint",
-    "description": "Store the name and complaint of a person in the complaint book.",
-    "parameters": {
-        "type": "OBJECT",
-        "properties": {
-            "name": {
-                "type": "STRING",
-                "description": "Name of the person whose complaint is to be stored.",
-            },
-            "complaint": {"type": "STRING", "description": "Complaint of the person"},
+add_complaint_tool = types.FunctionDeclaration(
+    name="add_complaint",
+    description="Store the name and complaint of a person in the complaint book.",
+    parameters=types.Schema(
+        properties={
+            "name": types.Schema(
+                type='STRING',
+                description="Name of the person whose complaint is to be stored.",
+            ),
+            "complaint": types.Schema(
+                type='STRING',
+                description="Complaint of the person.",
+            )
         },
-        "required": ["name", "complaint"],
-    },
-}
-
+        required=["name", "complaint"],
+    ),
+)
 
 def get_complaint_details(name: str) -> ComplaintType | None:
     """Get the complaint and resolution period of the complaint of a person from the complaint book.
@@ -97,18 +98,16 @@ def get_complaint_details(name: str) -> ComplaintType | None:
     else:
         return None
 
-
-get_complaint_details_tool: Dict = {
-    "name": "get_complaint_details",
-    "description": "Get the complaint and resolution period of the complaint of a person from the complaint book",
-    "parameters": {
-        "type": "OBJECT",
-        "properties": {
-            "name": {
-                "type": "STRING",
-                "description": "Name of the person whose complaint is to be retrieved.",
-            },
+get_complaint_details_tool = types.FunctionDeclaration(
+    name="get_complaint_details",
+    description="Get the complaint and resolution period of the complaint of a person from the complaint book.",
+    parameters=types.Schema(
+        properties={
+            "name": types.Schema(
+                type='STRING',
+                description="Name of the person whose complaint is to be retrieved.",
+            )
         },
-        "required": ["name"],
-    },
-}
+        required=["name"],
+    ),
+)

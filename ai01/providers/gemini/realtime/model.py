@@ -6,26 +6,29 @@ from typing import List, Optional
 import websockets
 from google import genai
 from google.genai import types
+from google.genai._api_client import HttpOptions
 from google.genai.live import AsyncSession
 from pydantic.v1.main import BaseModel
 
 from ai01.agent._models import AgentsEvents
 from ai01.agent.agent import Agent
 from ai01.providers._api import ToolCallData, ToolResponseData
-from ai01.providers.gemini.conversation import Conversation
-
-from ...utils.emitter import EnhancedEventEmitter
+from ai01.providers.gemini.realtime.conversation import Conversation
+from ai01.utils.emitter import EnhancedEventEmitter
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
 class GeminiConfig(BaseModel):
-    function_declaration: Optional[List] = None
-    retrieval: Optional[types.Retrieval] = None
-    code_execution: Optional[types.ToolCodeExecution] = None
-    google_search: Optional[types.GoogleSearch] = None
-    google_search_retrieval: Optional[types.GoogleSearchRetrieval] = None
+    """
+    Config is the configuration for the Gemini Model
+
+    Attributes:
+    - tools: List[types.FunctionDeclaration] | None
+
+    """
+    tools: Optional[List[types.FunctionDeclaration]] = None
 
     class Config:
         arbitrary_types_allowed = True
@@ -67,17 +70,12 @@ class GeminiRealtime(EnhancedEventEmitter):
         self.agent = agent
         self._options = options
 
-        tools = []
+        tools: types.Tool = types.Tool()
+
         if options.config is not None:
-            tools.append(
-                types.Tool(
-                    function_declarations=options.config.function_declaration,
-                    google_search=options.config.google_search,
-                    google_search_retrieval=options.config.google_search_retrieval,
-                    code_execution=options.config.code_execution,
-                    retrieval=options.config.retrieval,
-                )
-            )
+            # Check if tools are provided in the config
+            if options.config.functions is not None:
+                tools.function_declarations = options.config.functions
 
         self.config = types.LiveConnectConfig(
             response_modalities=["AUDIO"],
@@ -88,12 +86,14 @@ class GeminiRealtime(EnhancedEventEmitter):
                     )
                 ]
             ),
-            tools=tools,
+            tools=[tools],
         )
 
         self.client = genai.Client(
             api_key=self._options.gemini_api_key,
-            http_options={"api_version": "v1alpha"},
+            http_options=HttpOptions(
+                api_version="v1beta",
+            )
         )
 
         self.loop = asyncio.get_event_loop()
@@ -131,7 +131,6 @@ class GeminiRealtime(EnhancedEventEmitter):
                 media_chunks=[types.Blob(data=audio_bytes, mime_type="audio/pcm")]
             )
             await self.session.send(input=input, end_of_turn=False)
-        # {"data": audio_bytes, "mime_type": "audio/pcm"}, end_of_turn=False
         except websockets.exceptions.ConnectionClosed:
             self._logger.warning("WebSocket connection closed while sending audio.")
             self.session = None
@@ -147,8 +146,6 @@ class GeminiRealtime(EnhancedEventEmitter):
                     elif response.text:
                         self.agent.emit(AgentsEvents.TextResponse, response.text)
                     elif response.tool_call:
-                        print("tool call recieved", response.tool_call)
-
                         if response.tool_call.function_calls is None:
                             continue
 
@@ -199,8 +196,24 @@ class GeminiRealtime(EnhancedEventEmitter):
             await self.send_audio(audio_chunk)
 
     async def run(self):
+        """
+        Run the Realtime Model and connect to the Gemini Model.
+        This method will keep the connection alive and handle reconnections
+        """
         while True:
+            if self.tasks:
+                for task in self.tasks:
+                    if not task.done():
+                        task.cancel()
+
+                await asyncio.gather(*self.tasks, return_exceptions=True)
+
+            self.tasks = []
+            self.session = None
+
             try:
+                self._logger.info(f"Connecting to the Gemini Model, {self._options.model}")
+
                 async with self.client.aio.live.connect(
                     model=self._options.model, config=self.config
                 ) as session:
@@ -211,9 +224,16 @@ class GeminiRealtime(EnhancedEventEmitter):
 
                     self.tasks.extend([handle_response_task, fetch_audio_task])
                     await asyncio.gather(*self.tasks)
+
+            except asyncio.CancelledError:
+                self._logger.info("Realtime Model cancelled.")
+                break
+
             except Exception as e:
                 self._logger.error(f"Error in connecting to the Gemini Model: {e}")
-                await asyncio.sleep(5)  # Wait before attempting to reconnect
 
+            self.session = None
+            await asyncio.sleep(5)
+            
     async def connect(self):
         self.loop.create_task(self.run())
