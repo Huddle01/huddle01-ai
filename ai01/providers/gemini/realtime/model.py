@@ -38,17 +38,24 @@ class GeminiRealtimeResponse(types.LiveServerMessage):
         super().__init__(**server_response.model_dump())
 
     @property
-    def interrupted(self) -> bool | None:
+    def interrupted(self):
         """
         Check if the response is interrupted
         """
+        if self.server_content is None:
+            return None
+        
         return self.server_content.interrupted
+
 
     @property
     def turn_complete(self) -> bool | None:
         """
         Check if the response is turn complete
         """
+        if self.server_content is None:
+            return None
+    
         return self.server_content.turn_complete
     
     @property
@@ -56,6 +63,9 @@ class GeminiRealtimeResponse(types.LiveServerMessage):
         """
         Get the model turn
         """
+        if self.server_content is None:
+            return None
+        
         return self.server_content.model_turn
     
     @property
@@ -103,27 +113,42 @@ class GeminiOptions(BaseModel):
 
 class GeminiRealtime(EnhancedEventEmitter):
     def __init__(self, agent: Agent, options: GeminiOptions):
+        super().__init__()
+        
         self.agent = agent
         self._options = options
 
-        tools: types.Tool = types.Tool()
+        tools: types.ToolDict = types.ToolDict()
 
         if options.config is not None:
-            # Check if tools are provided in the config
             if options.config.tools is not None:
-                tools.function_declarations = options.config.tools
+                tools.function_declarations = options.config.tools # type: ignore
 
-        self.config = types.LiveConnectConfig(
-            response_modalities=["AUDIO"],
-            system_instruction=types.Content(
-                parts=[
-                    types.Part(
-                        text=options.system_instruction,
-                    )
-                ]
-            ),
-            tools=[tools],
+        system_instruction_content = types.Content(
+            parts=[types.Part(text=options.system_instruction)]
         )
+
+        self.config: types.LiveConnectConfigDict = {
+            "response_modalities": self._options.response_modalities,
+            "realtime_input_config": {
+                "automatic_activity_detection": {
+                    "disabled": False,
+                    "start_of_speech_sensitivity": "START_SENSITIVITY_HIGH",
+                    "end_of_speech_sensitivity": "END_SENSITIVITY_HIGH",
+                    "prefix_padding_ms": 300,
+                    "silence_duration_ms": 500,
+                }
+            },
+            "speech_config": {
+                "voice_config": {
+                    "prebuilt_voice_config": {
+                        "voice_name": "Kore",
+                    }
+                }
+            },
+            "system_instruction": system_instruction_content, # type: ignore
+            "tools": [tools]
+        }
 
         self.client = genai.Client(
             api_key=self._options.gemini_api_key,
@@ -258,10 +283,10 @@ class GeminiRealtime(EnhancedEventEmitter):
                 ) as session:
 
                     self.session = session
-                    self.session.send(input=self)
 
                     handle_response_task = asyncio.create_task(self.handle_response())
                     fetch_audio_task = asyncio.create_task(self.fetch_audio_from_rtc())
+
 
                     self.tasks.extend([handle_response_task, fetch_audio_task])
                     await asyncio.gather(*self.tasks)
